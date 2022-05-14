@@ -1,0 +1,760 @@
+---
+title: "BST245 Midterm"
+author: "Jonathan Luu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA, fig.width = 12, fig.height = 8)
+#load("C:\\Users\\Jonathan\\Dropbox\\School\\Harvard\\BST245\\Midterm\\ICHS.RData")
+load("/Users/jonathanluu/Dropbox/School/Harvard/BST245/Midterm/ICHS.RData")
+library(rootSolve)
+library(fastGHQuad)
+```
+
+# Problem 1
+
+Show that this distribution satisfies $\heartsuit$. 
+
+First, I will show that $E[Y_{ki}]=\mu_{ki}$.
+
+$$
+\begin{aligned}
+P(Y_{ki}=y_{ki}|Y_{ki'}=0)&=\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}}(1-\mu_{ki'})\left[1 + \rho\frac{(y_{ki}-\mu_{ki})(-\mu_{ki'})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}} \right]\\
+P(Y_{ki}=y_{ki}|Y_{ki'}=1)&=\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}}\mu_{ki'}\left[1 +\rho\frac{(y_{ki}-\mu_{ki})(1-\mu_{ki'})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}} \right]\\
+P(Y_{ki}=y_{ki})&=P(Y_{ki}=y_{ki}|Y_{ki'}=0)+P(Y_{ki}=y_{ki}|Y_{ki'}=1)\\
+&=\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}} + \frac{\rho\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}}(y_{ki}-\mu_{ki})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}}\left[(1-\mu_{ki'})(-\mu_{ki'}) + \mu_{ki'}(1-\mu{ki'}) \right]\\
+&=\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}} + \frac{\rho\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}}(y_{ki}-\mu_{ki})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}}*[0]\\
+&=\mu_{ki}^{y_{ki}}(1-\mu_{ki})^{1-y_{ki}}\\
+E[Y_{ki}]&=P(Y_{ki}=1)=\mu_{ki}^1(1-\mu_{ki})^{1-1}\\
+&=\mu_{ki}
+\end{aligned}
+$$
+
+Next, I will show that $Corr(Y_{ki},Y_{ki'})=\rho$.
+
+$$
+\begin{aligned}
+Corr(Y_{ki},Y_{ki'})&=\frac{Cov(Y_{ki},Y_{ki'})}{\sqrt{Var(Y_{ki})}\sqrt{Var(Y_{ki'})}}\\
+Cov(Y_{ki},Y_{ki'})&=E[Y_{ki}Y_{ki'}]-E[Y_{ki}]E[Y_{ki'}]\\
+&=P(Y_{ki}=1,Y_{ki'}=1) - \mu_{ki}\mu_{ki'}\\
+&=\mu_{ki}\mu_{ki'}\rho\frac{(1-\mu_{ki})(1-\mu_{ki'})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}}\\
+&=\rho\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}\\
+Var(Y_{ki})&=E[Y_{ki}^2]-E[Y_{ki}]^2\\
+&=\mu_{ki}(1-\mu_{ki})\\
+Corr(Y_{ki},Y_{ki'})&=\frac{\rho\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}}{\sqrt{\mu_{ki}(1-\mu_{ki})}\sqrt{\mu_{ki'}(1-\mu_{ki'})}}\\
+&=\rho
+\end{aligned}
+$$
+
+\newpage
+# Problem 2
+
+Show that this distribution satisfies $\heartsuit$. 
+
+First, I will show that $E[Y_{ki}]=\mu_{ki}$.
+
+$$
+\begin{aligned}
+E[Y_{ki}]&=E_{a_k}[E[Y_{ki}|a_k]]\\
+&=E_{a_k}[P(Y_{ki}=1|a_k)]\\
+&=E_{a_k}[\mu_{ki}+a_k\sqrt{\mu_{ki}(1-\mu_{ki})}]\\
+&=\mu_{ki} + \sqrt{\mu_{ki}(1-\mu_{ki})}E[a_k]\\
+&=\mu_{ki}
+\end{aligned}
+$$
+
+Next, I will show that $Corr(Y_{ki},Y_{ki'})=\rho$.
+
+$$
+\begin{aligned}
+Corr(Y_{ki},Y_{ki'})&=\frac{Cov(Y_{ki},Y_{ki'})}{\sqrt{Var(Y_{ki})}\sqrt{Var(Y_{ki'})}}\\
+Cov(Y_{ki},Y_{ki'})&=E[Y_{ki}Y_{ki'}]-E[Y_{ki}]E[Y_{ki'}]\\
+&=E_{a_k}[E[Y_{ki}Y_{ki'}|a_k]] - \mu_{ki}\mu_{ki'}\\
+&=E_{a_k}[P(Y_{ki}=1,Y_{ki'}=1|a_k)] - \mu_{ki}\mu_{ki'}\\
+&=E_{a_k}[P(Y_{ki}=1|a_k)P(Y_{ki'}=1|a_k)] - \mu_{ki}\mu_{ki'}\\
+&=E_{a_k}[\mu_{ki}\mu_{ki'}+\mu_{ki}a_k\sqrt{\mu_{ki'}(1-\mu_{ki'})}+\mu_{ki'}a_k\sqrt{\mu_{ki}(1-\mu_{ki})}+a_k^2\sqrt{\mu_{ki'}(1-\mu_{ki'})}\sqrt{\mu_{ki}(1-\mu_{ki})}]- \mu_{ki}\mu_{ki'}\\
+&=\sqrt{\mu_{ki'}(1-\mu_{ki'})}\sqrt{\mu_{ki}(1-\mu_{ki})}E[a_k^2]\\
+&=\sqrt{\mu_{ki'}(1-\mu_{ki'})}\sqrt{\mu_{ki}(1-\mu_{ki})}\rho\\
+Var(Y_{ki})&=E_{a_k}[Var(Y_{ki}|a_k)] + Var(E[Y_{ki}|a_k])\\
+E_{a_k}[Var(Y_{ki}|a_k)]&=E_{a_k}[P(Y_{ki}=1|a_k)-P(Y_{ki}=1|a_k)^2]\\
+&=\mu_{ki}(1-\mu_{ki})(1-\rho)\\
+Var(E[Y_{ki}|a_k])&=\mu_{ki}(1-\mu_{ki})Var[a_k]\\
+&=\mu_{ki}(1-\mu_{ki})(\rho)\\
+Var(Y_{ki})&=\mu_{ki}(1-\mu_{ki})(1-\rho) + \mu_{ki}(1-\mu_{ki})(\rho)\\
+&=\mu_{ki}(1-\mu_{ki})\\
+Corr(Y_{ki},Y_{ki'})&=\frac{\sqrt{\mu_{ki'}(1-\mu_{ki'})}\sqrt{\mu_{ki}(1-\mu_{ki})}\rho}{\sqrt{\mu_{ki}(1-\mu_{ki})}\sqrt{\mu_{ki'}(1-\mu_{ki'})}}\\
+&=\rho
+\end{aligned}
+$$
+
+\newpage
+# Problem 3
+
+## Part 3a
+
+Yes, it is true that the $E[\frac{\partial}{\partial \beta}\log L(\beta,\rho)|\beta=\beta_0]=0$ for any choice of $\rho$.
+
+$$
+\begin{aligned}
+&E\left[\frac{\partial}{\partial \beta}\log L(\beta,\rho)|\beta=\beta_0 \right]= \sum_{k=1}^K\sum_{1\le i<i'\le n_k}E_X\left[E\left[\frac{\partial}{\partial \beta}\log P_{kii'} |X_{k}, \beta=\beta_0\right] \right]\\
+&=\sum_{k=1}^K\sum_{1\le i<i'\le n_k}E_X[E\left[\frac{\partial}{\partial \beta} y_{ki}log(\mu_{0ki})+(1-y_{ki})log(1-\mu_{0ki})+y_{ki'}log(\mu_{0ki'})+(1-y_{ki'})log(1-\mu_{0ki'})|X_{k}, \beta=\beta_0\right]\\
+&\qquad \qquad + \frac{\partial}{\partial \beta}E\left[log\left(1+\rho \frac{(y_{ki}-\mu_{0ki})(y_{ki'}-\mu_{0ki'})}{\sqrt{\mu_{0ki}(1-\mu_{0ki})\mu_{0ki'}(1-\mu_{0ki'})}} |X_{k}, \beta=\beta_0 \right)\right]] \\
+&\le\sum_{k=1}^K\sum_{1\le i<i'\le n_k}E_X\left[E\left[y_{ki}x_{ki}-x_{ki}\mu_{0ki} + y_{ki'}x_{ki'}-x_{ki'}\mu_{0ki'} | X_{k}\right]+ \frac{\partial}{\partial \beta}log(1+\rho*\rho_0)\right]\\
+&=\sum_{k=1}^K\sum_{1\le i<i'\le n_k}E_X\left[x_{ki}\mu_{0ki}-x_{ki}\mu_{0ki} + x_{ki'}\mu_{0ki'}- x_{ki'}\mu_{0ki'}+0 \right]\\
+&= 0
+\end{aligned}
+$$
+
+where we can swap the derivative and expectation of the final term due to the discrete additive nature of the expectation (sum of derivatives = derivative of the sum), and we can bring the expectation in from Jensen's inequality.
+
+\newpage
+
+## Part 3b
+
+Estimate $\hat{\beta}, \hat{\rho}$.
+
+```{r, cache=TRUE}
+### Attempt at maximization of the log likelihood
+# Covariates of interest
+data.3b <- ichs[,1:4]
+
+# Split by id
+split.3b <- split(data.3b, data.3b$id)
+
+# Define expit function
+expit <- function(x){plogis(x)}
+
+# Define log Pk distribution
+pkii <- function(beta, obs1, obs2, rho, delta=0.0001){
+   x1 <- obs1[3:4]
+   x2 <- obs2[3:4]
+   y1 <- obs1[2]
+   y2 <- obs2[2]
+   mu1 <- expit(t(beta)%*%x1)
+   mu2 <- expit(t(beta)%*%x2)
+
+   p <- y1*log(mu1+delta) + (1-y1)*log(1-mu1+delta) + y2*log(mu2+delta) + 
+      (1-y2)*log(1-mu2+delta) + log(abs(1+rho*(y1-mu1+delta)*(y2-mu2+delta)/
+            sqrt((mu1+delta)*(1-mu1+delta)*(mu2+delta)*(1-mu2+delta))))
+   
+   return(p)
+}
+
+# Calculate the log likelihood given beta and rho
+calcLL <- function(beta, rho){
+   ll <- 0
+   for (k in split.3b){
+      currPerson <- as.matrix(k)
+   
+      # Deal with single observations
+      if (nrow(k)==1){
+         ll <- ll+currPerson[1,2]*log(expit(t(beta)%*%currPerson[1,3:4])) +
+            (1-currPerson[1,2])*log(1-expit(t(beta)%*%currPerson[1,3:4]))
+         next
+      }
+   
+      for (i in 1:(nrow(k)-1) ){
+         obs.ki <- currPerson[i,]
+         for (j in (i+1):nrow(k)){
+            obs.kj <- currPerson[j,]
+            ll <- ll+pkii(beta,obs.ki,obs.kj, rho)
+         }
+      }
+   }
+   return(ll)
+}
+
+# Run optimization on log likelihood
+optim(matrix(c(-0.026, 0.72)), calcLL, control=list(fnscale=-1), rho=0)$par
+```
+
+### Issues with optimizing the likelihood: 
+The joint probability distribution received many $\mu_{ki},\mu_{ki'}=$ 0 or 1 which would lead to taking the log of 0 producing $-\infty$. 
+
+To attempt to remedy this, I added a very small delta to these $\mu$ values. However, this led to the last term, $\left[1 + \rho\frac{(y_{ki}-\mu_{ki})(-\mu_{ki'})}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{ki'}(1-\mu_{ki'})}} \right]$ becoming very large. If the large term was negative, I would be taking the log of a negative number producing NA. Therefore, I chose to go the second route - root-solving for the score. 
+
+\newpage
+```{r, cache=TRUE}
+### Attempt at root solving the derivative
+# First derivative of log Pkii w.r.t. beta
+first.deriv.beta <- function(y1,y2,x1,x2,beta,rho){
+   t0 <- x1+x2 # x + n
+   t1 <- as.numeric(exp((t(beta)%*%t0)/2)) # e^(x+n)b/2
+   t2 <- as.numeric(y2-1) # m-1
+   t3 <- as.numeric(y1-1) # y-1
+   t4 <- as.numeric(exp(t(beta)%*%x1)) #e^xb
+   t5 <- as.numeric(exp(t(beta)%*%x2)) #e^nb
+
+   r1 <- (t0*t1)/2
+   r2 <- t2*x2*rho*t5*(t3*t4+y1)
+   r3 <- rho*x1*t3*(t2*t5+y2)*t4
+   r4 <- t1 + rho*(t2*t5+y2)*(t3*t4+y1)
+
+   last.term <- (r1 + r2 + r3)/r4 - t0/2
+   as.numeric(y1-expit(t(beta)%*%x1))*x1 + as.numeric(y2-expit(t(beta)%*%x2))*x2 + last.term
+}
+
+# First derivative of log Pkii w.r.t. rho
+first.deriv.rho <- function(y1,y2,x1,x2,beta,rho){
+   t0 <- x1+x2 # x + n
+   t1 <- as.numeric(exp((t(beta)%*%t0)/2)) # e^(x+n)b/2
+   t2 <- as.numeric(y2-1) # m-1
+   t3 <- as.numeric(y1-1) # y-1
+   t4 <- as.numeric(exp(t(beta)%*%x1)) #e^xb
+   t5 <- as.numeric(exp(t(beta)%*%x2)) #e^nb
+   
+   r1<-(t2*t5+y2)
+   r2<-((t4+1)*y1-t4)
+   r3<-r1*r2*rho + t1
+   
+   return((r1*r2)/r3)
+}
+
+# Calculate the score given beta and rho
+calcScore <- function(beta, rho, deriv="beta"){
+   sc <- 0
+   for (k in split.3b){
+      currPerson <- as.matrix(k)
+   
+      # Deal with single observations
+      if (nrow(k)==1){
+         if (deriv=="beta")
+            sc <- sc + as.numeric(currPerson[1,2]-expit(t(beta)%*%
+                  currPerson[1,3:4]))*currPerson[1,3:4]
+         next
+      }
+   
+      for (i in 1:(nrow(k)-1) ){
+         obs.ki <- currPerson[i,]
+         y1 <- obs.ki[2]
+         x1 <- obs.ki[3:4]
+         for (j in (i+1):nrow(k)){
+            obs.kj <- currPerson[j,]
+            y2 <- obs.kj[2]
+            x2 <- obs.kj[3:4]
+            
+            if (deriv=="beta"){
+               sc <- sc+first.deriv.beta(y1,y2,x1,x2,beta,rho)
+            }
+            else if (deriv=="rho"){
+               sc <- sc+first.deriv.rho(y1,y2,x1,x2,beta,rho)
+            }
+         }
+      }
+   }
+   return(sc)
+}
+
+# Run root solver until convergence
+max_iter <- 100
+tolerance <- 1e-8
+rho_guess <- 0
+beta_guess <- matrix(c(-0.026, 0.72)) # Initial guess from GLM
+for (i in 1:max_iter){
+   prev_beta <- beta_guess
+   rho_guess <- multiroot(calcScore, rho_guess, beta=beta_guess, deriv="rho")$root
+   beta_guess <- multiroot(calcScore, beta_guess, rho=rho_guess)$root
+
+   change <- abs(beta_guess[1]-prev_beta[1]) + abs(beta_guess[2]-prev_beta[2])
+   if (change < tolerance){
+      break
+   }
+}
+
+# Converged beta and rho values
+c(beta_guess[1],-beta_guess[2], rho_guess)
+```
+
+\newpage
+I found the closed form derivatives of log($P_{kii'}$) with respect to both $\beta$ and $\theta$ using an online calculator. 
+
+![Input](input.JPG)
+
+
+![$\frac{\partial}{\partial \beta}$](db.JPG)
+
+
+![$\frac{\partial}{\partial \rho}$](dp.JPG)
+
+I then used these derivatives to calculate their respective scores by looping through the appropriate cluster and observations. The score was solved using the multiroot function, part of the rootSolve package. I alternated between solving for $\rho$ and $\beta$ until the solutions converged. 
+
+\newpage
+```{r, cache=TRUE}
+### Attempt at using numerical approximation of the score
+calcScore2 <- function(beta, rho, deriv="beta"){
+   delta <- 0.0001
+   result <- 0
+   if (deriv=="beta"){
+      result1 <-(calcLL(beta+c(delta, 0), rho) - calcLL(beta-c(delta, 0), rho))/(2*delta)
+      result2 <-(calcLL(beta+c(0, delta), rho) - calcLL(beta-c(0, delta), rho))/(2*delta)
+      result <- c(result1, result2)
+   }else if (deriv=="rho"){
+      result <-(calcLL(beta, rho+delta) - calcLL(beta, rho-delta))/(2*delta)
+   }
+ 
+   return(result)
+}
+
+# Run root solver until convergence
+max_iter <- 100
+tolerance <- 1e-8
+rho_guess <- 0
+beta_guess <- matrix(c(-0.026, 0.72)) # Initial guess from GLM
+for (i in 1:max_iter){
+   prev_beta <- beta_guess
+   rho_guess <- multiroot(calcScore2, rho_guess, beta=beta_guess, deriv="rho")$root
+   beta_guess <- multiroot(calcScore2, beta_guess, rho=rho_guess)$root
+
+   change <- abs(beta_guess[1]-prev_beta[1]) + abs(beta_guess[2]-prev_beta[2])
+   if (change < tolerance)
+      break
+}
+
+c(beta_guess[1],-beta_guess[2], rho_guess)
+```
+
+I also attempted to use the numerical approximation technique recommended using the log likelihood. the results I got using this method were nearly identical to the analytically derived result.
+
+\newpage
+## Part 3c
+
+Compute sandwich SE estimates for $\hat{\beta}, \hat{\rho}$.
+
+```{r}
+### Attempt at using numerical approximation for second derivatives
+secondDerive <- function(beta, rho, i, j){
+   delta <- 0.0001
+
+   ei <- ej <- rep(0,3)
+   ei[i] <- 1
+   ej[j] <- 1
+   
+   t1 <- c(beta,rho) + ei*delta + ej*delta
+   t2 <- c(beta,rho) + ei*delta - ej*delta
+   t3 <- c(beta,rho) - ei*delta + ej*delta
+   t4 <- c(beta,rho) - ei*delta - ej*delta
+   
+   result <- (calcLL(t1[1:2],t1[3]) - calcLL(t2[1:2],t2[3]) - 
+      calcLL(t3[1:2],t3[3]) + calcLL(t4[1:2],t4[3]))/(4*delta^2)
+   
+   return(result)
+}
+
+# Calculate meat of sandwich estimator
+G <- matrix(c(calcScore2(matrix(c(-0.01247365, -0.40165484)), 0.68025641),
+         calcScore2(matrix(c(-0.01247365, -0.40165484)), 0.68025641,"rho")))
+B <- G%*%t(G)
+
+# Calculate bread of sandwich estimator
+A <- matrix(0, nrow=3, ncol=3)
+for (i in 1:3){
+   for (j in 1:3){
+      A[i,j] <- secondDerive(beta_guess, rho_guess, i,j)
+   }
+}
+
+# Sandwich estimator
+diag(solve(-A)%*%B%*%solve(-A))
+```
+
+Let $g$ be the (1 x p) vector representing the first partial derivatives of the log likelihood. The meat of sandwich estimator is calculated by doing $g^Tg$. Let A be the (p x p) matrix representing all the second partial derivatives of the log likelihood. The sandwich estimator is calculated by doing $(-A)^{-1}B(-A)^{-1}$ at $\hat{\theta}$.
+
+\newpage
+# Problem 4
+
+## Part 4a
+
+Verify $E[a_k]=0, Var(a_k)=\rho$, and that the support of this distribution restricts $Q_{ki}(a_k) \in [0,1]$.
+
+First, I will show $E[a_k]=0$.
+
+$$
+\begin{aligned}
+E[a_k]&=E[(U_k-L_k)b_k + L_k]\\
+E[b_k]&=\frac{\alpha}{\alpha+\beta}\\
+&=\frac{\frac{-L_k(-U_kL_k-\rho)}{(U_k-L_k)\rho}}{\frac{-L_k(-U_kL_k-\rho)}{(U_k-L_k)\rho} + \frac{U_k(-U_kL_k-\rho)}{(U_k-L_k)\rho}}\\
+&=\frac{-L_k}{U_k-L_k}\\
+E[a_k]&=(U_k-L_k)\frac{-L_k}{U_k-L_k} + L_k\\
+&=0
+\end{aligned}
+$$
+
+Second, I will show $Var(a_k)=\rho$.
+
+$$
+\begin{aligned}
+Var(a_k) &= Var[(U_k-L_k)b_k + L_k]\\
+&=(U_k-L_k)^2Var(b_k)\\
+Var(b_k)&= \frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)}\\
+&=\frac{\frac{-L_k(-U_kL_k-\rho)}{(U_k-L_k)\rho} \frac{U_k(-U_kL_k-\rho)}{(U_k-L_k)\rho}}{\left(\frac{(-U_kL_k-\rho)}{\rho}\right)^2 \left(\frac{(-U_kL_k-\rho)}{\rho} + 1 \right) }\\
+&=\frac{-L_kU_k(-U_kL_k-\rho)^2}{(U_k-L_k)^2\rho^2}\frac{\rho^3}{-L_kU_k(-U_kL_k-\rho)^2}\\
+&=\frac{\rho}{(U_k-L_k)^2}\\
+Var(a_k) &= (U_k-L_k)^2\frac{\rho}{(U_k-L_k)^2}\\
+&= \rho
+\end{aligned}
+$$
+
+\newpage
+Third, I will show the support of this distribution restricts $Q_{ki}(a_k) \in [0,1]$. 
+
+- $b_k \in [0,1]$
+- $\mu_{ki}=\text{expit}(\beta^TX) \in [0,1]$
+
+$L_k$ and $U_k$ are ratios of $\mu_{ki}$, so they can range from $(0,\infty)$. However, they are mitigated by $b_k$. Suppose we have the following cases:
+
+1. Both the min and max $\mu_{ki} \approx 1$. This implies that $L_k$ is very large, and $U_k$ is very small. A large $L_k$ and a small $U_k$ imply that $v_k$ is very large compared to $w_k$, causing $b_k \approx 1$, as can be seen below.
+
+```{r}
+rbeta(n=10, 900000, 0.01)
+```
+
+Therefore, $a_k$ is very close to 0:
+
+$$
+a_k = (Small - Large)(1) + Large \approx-Large+Large \approx0
+$$.
+
+2. Both the min and max $\mu_{ki} \approx 0$. This implies that $U_k$ is very large and $L_k$ is very small. A large $U_k$ and a small $L_k$ imply that $v_k$ is very small compared to $w_k$, causing $b_k \approx 0$, as can be seen below.
+
+```{r}
+rbeta(n=10, 0.01, 900000)
+```
+
+Therefore, $a_k$ is very close to 0:
+
+$$
+a_k = (Large - Small)(0) + Small \approx Small \approx0
+$$.
+
+3. If $\min_i \mu_{ki}$ is very small and $\max_i \mu_{ki}$ is very large, then both $U_k$ and $L_k$ are relatively small, so we are not concerned about $b_k$ as it ranges between $[0,1]$.
+
+4. $\min_i \mu_{ki}$ being very large and $\max_i \mu_{ki}$ being very small is not possible by definition.
+
+5. Both the min and max are around 0.5. $U_k$ and $L_k$ approach 1 as $\mu_{ki}$ approaches 0.5, which is the upper bound of $a_{ki}$. 
+
+Therefore, in all the extreme scenarios, we can see that $a_{ki}$ stays within the range $[0,1]$.
+
+For $Q_{ki}(a_k)$ to stay within [0,1], it requires $\tilde{\mu}_{ki}(a_k)$ to stay within [0,1].
+
+$$
+\tilde{\mu}_{ki}(a_k) = \mu_{ki} + a_k\sqrt{\mu_{ki}(1-\mu_{ki})}
+$$
+We have $\mu_{ki} \in [0,1], a_k \in[0,1]$, and $\sqrt{\mu_{ki}(1-\mu_{ki})} \in [0,0.5]$ with $\sqrt{\mu_{ki}(1-\mu_{ki})}$ increasing as $\mu_{ki}$ approaches 0.5, and decreasing as it gets further away from 0.5 towards 0 or 1. Therefore, $\tilde{\mu}_{ki}(a_k)$'s maximum value is 1 and minimum value is 0, so $a_k$ restricts $Q_{ki}(a_k) \in [0,1]$.
+
+
+\newpage
+## Part 4b
+
+To utilize Gauss-Hermite, I need to transform $L(\beta,\rho)$ into the form $\int h(x)exp(-x^2)dx$. Using the recommended $f(a|\rho) = \frac{f(a|\rho)}{\phi(a|0,\rho)}\phi(a|0,\rho)$, I can utilize the Normal distribution's exp function. 
+
+$$
+exp\left(\frac{-a_k^2}{2\rho}\right) = exp(-x^2)
+$$
+
+where $x=\frac{a_k}{\sqrt{2\rho}}$, $a_k=\sqrt{2\rho} x$, and $dx=\frac{1}{\sqrt{2\rho}}da_k$. 
+
+Furthermore, I wanted to get $f(a|\rho)$ into terms of a. On the wikipedia page for the Beta distribution, it discusses a beta distribution with four parameters - two shape parameters $\alpha, \beta$ and two parameters representing the minimum and maximum values of the distribution $a,c$ which is the location-scaled beta distribution given in the problem. With $a_k=y, U_k=c, L_k=a, x=b_k \sim Beta(v_k, w_k)$, the density can be written as:
+
+$$
+\begin{aligned}
+f(y; \alpha, \beta, a, c) &= \frac{(y-a)^{\alpha-1}(c-y)^{\beta-1}}{(c-a)^{\alpha+\beta-1}B(\alpha,\beta)}\\
+\Rightarrow f(a_k;v_k,w_k,L_k,U_k) &= \frac{(a_k-L_k)^{v_k-1}(U_k-a_k)^{w_k-1}}{(U_k-L_k)^{v_k+w_k-1}B(v_k, w_k)}
+\end{aligned}
+$$
+
+Substituting in x and $f(a|\rho)$ in the marginal likelihood:
+
+$$
+\begin{aligned}
+L(\beta,\rho) &=\prod_{k=1}^K \int_R \left[\prod_{i=1}^{n_k} Q_{ki}(a_k)\right]\frac{f(a|\rho)}{\phi(a|0,\rho)}\phi(a|0,\rho) da_k\\
+&=\prod_{k=1}^K \int_R \left[\prod_{i=1}^{n_k} \left(\mu_{ki}+a_k\sqrt{\mu_{ki}(1-\mu_{ki})} \right)^{y_{ki}} \left(1 - \mu_{ki}-a_k\sqrt{\mu_{ki}(1-\mu_{ki})} \right)^{1-y_{ki}}\right] \frac{(a_k-L_k)^{v_k-1}(U_k-a_k)^{w_k-1}}{(U_k-L_k)^{v_k+w_k-1}B(v_k, w_k)}\\
+&\qquad \qquad \cdot \frac{\frac{1}{\sqrt{2\pi \rho}}exp\left(-\frac{a_k^2}{2\rho} \right)}{\frac{1}{\sqrt{2\pi \rho}}exp\left(-\frac{a_k^2}{2\rho} \right)} da_k\\
+&=\prod_{k=1}^K \int_R \left[\prod_{i=1}^{n_k} \left(\mu_{ki}+\sqrt{2\rho} x\sqrt{\mu_{ki}(1-\mu_{ki})} \right)^{y_{ki}} \left(1 - \mu_{ki}-\sqrt{2\rho} x\sqrt{\mu_{ki}(1-\mu_{ki})} \right)^{1-y_{ki}}\right]\\
+&\qquad \qquad \cdot \frac{\frac{(\sqrt{2\rho} x-L_k)^{v_k-1}(U_k-\sqrt{2\rho} x)^{w_k-1}}{(U_k-L_k)^{v_k+w_k-1}B(v_k, w_k)}}{\frac{1}{\sqrt{2 \rho}}exp\left(-x^2 \right)}   exp\left(-x^2 \right)dx\\
+\end{aligned}
+$$
+
+\newpage
+```{r, cache=TRUE}
+rule <- gaussHermiteData(5)
+
+# Function for ghQuad
+h <- function(x, beta, rho, Xk, Yk){
+   sub <- sqrt(2*rho)*x
+   q <- 1
+   nk <- length(Yk)
+
+   # Calculate the product of Q
+   for (i in 1:nk){
+      Xki <- Xk[i,]
+      Yki <- Yk[i]
+      mu_ki <- as.numeric(expit(t(beta)%*%Xki))
+      mu_ki_opp <- as.numeric(sqrt(mu_ki*(1-mu_ki)))
+
+      term1 <-(mu_ki + sub*mu_ki_opp)^Yki
+      term2 <- (1 - mu_ki - sub*mu_ki_opp)^(1-Yki)
+      
+      q <- q*term1*term2
+   }
+   
+   # Calculate Lk and Uk
+   all_mu_ki <- apply(Xk, 1, function(inp){expit(t(beta)%*%inp)})
+   min_mu_ki <- min(all_mu_ki)
+   max_mu_ki <- max(all_mu_ki)
+   Lk <- - sqrt(min_mu_ki/(1-min_mu_ki))
+   Uk <- sqrt((1-max_mu_ki)/max_mu_ki)
+
+   # Calculate vk and wk
+   v_k <- abs(-Lk*(-Uk*Lk-rho)/((Uk-Lk)*rho))
+   w_k <- abs(Uk*(-Uk*Lk-rho)/((Uk-Lk)*rho))
+   
+   # If outside of boundary, probability set to 0
+   sub[sub < Lk] <- 0
+   sub[sub > Uk] <- 0
+   
+   term3 <- ((sub-Lk)^(v_k-1))*((Uk-sub)^(w_k-1))
+   term4 <- ((Uk-Lk)^(v_k+w_k-1))*beta(v_k, w_k)
+   term5 <- (1/sqrt(2*rho))*exp(-x^2)
+   
+   q*((term3/term4)/term5)
+}
+
+# Calculates the marginal likelihood
+optimizeF <- function(beta, rho){
+   result <- 0
+   for (i in split.3b){
+      curr <- as.matrix(i)
+      GH.result <- ghQuad(h, rule, beta=beta, rho=rho, 
+                     Xk=curr[,3:4, drop=FALSE], Yk=curr[,2])
+      result <- result + log(abs(GH.result))
+   }
+   return(result)
+}
+
+# Run until convergence
+rho_guess <- 0.01
+beta_guess <- matrix(c(-0.026, 0.72))
+for (i in 1:max_iter){
+   prev_beta <- beta_guess
+   rho_guess <- optim(rho_guess, optimizeF, control=list(fnscale=-1, 
+                              warn.1d.NelderMead=FALSE), beta=beta_guess)$par
+   beta_guess <- optim(beta_guess, optimizeF, control=list(fnscale=-1), 
+                      rho=rho_guess)$par
+
+   change <- abs(beta_guess[1]-prev_beta[1]) + abs(beta_guess[2]-prev_beta[2])
+   if (change < tolerance)
+      break
+}
+
+c(beta_guess, rho_guess)
+```
+
+\newpage
+## Part 4c
+
+Compute model-based standard errors for $\beta, \rho$.
+
+```{r}
+second.deriv.4c <- function(beta, rho, i,j){
+   delta <- 0.0001
+
+   ei <- ej <- rep(0,3)
+   ei[i] <- 1
+   ej[j] <- 1
+   
+   t1 <- c(beta,rho) + ei*delta + ej*delta
+   t2 <- c(beta,rho) + ei*delta - ej*delta
+   t3 <- c(beta,rho) - ei*delta + ej*delta
+   t4 <- c(beta,rho) - ei*delta - ej*delta
+   
+   result <- (optimizeF(t1[1:2],t1[3]) - optimizeF(t2[1:2],t2[3]) - 
+      optimizeF(t3[1:2],t3[3]) + optimizeF(t4[1:2],t4[3]))/(4*delta^2)
+   
+   return(result)
+}
+
+A <- matrix(0, nrow=3, ncol=3)
+for (i in 1:3){
+   for (j in 1:3){
+      A[i,j] <- second.deriv.4c(beta_guess, rho_guess, i,j)
+   }
+}
+
+diag(solve(-A))
+```
+
+First, I calculated all the partial second derivatives using the log likelihood calculated by GHQ and called it A. I then did $(-A)^{-1}$ to obtain the model-based standard errors.
+
+\newpage
+# Problem 5
+
+The results from 3 and 4 were quite different, with problem 3 giving beta estimates of (-0.012, 0.402) and a rho estimate of 0.68. Furthermore, the robust standard errors generated were very small, with the beta standard error estimates being (1.125324e-17, 6.504649e-19) and rho standard error estimate being 3.944466e-18. These are extremely small for robust standard error estimates and I was unsure if I was calculating the second partial derivatives of the estimates correctly. Problem 4 gave beta estimates of (-0.0013, 0.572) and a rho estimate of 0.517. These are quite different from problem 3. Both of these estimates are quite far off from the gee and geeglm working exchangeable results. The gee method gave an estimate of (-0.255, 0.588) and a small rho of 0.04. It gave model-based standard errors of (0.006, 0.449) and robust standard errors of (0.005, 0.450) for the two betas. The geeglm method provided similar results to the gee method. 
+
+Advantages of gee and geeglm are that they are commonly used and work well with a lot of commonly used distributions. Furthermore, they are quite computationally efficient compared to these methods - problem 4 in particular as we are alternating between using GHQ and optimization. If we increase the number of GHQ nodes, it could potentially take a lot longer. Furthermore, the two models here are difficult to implement compared to just using packages for GEE. The methods used here are also quite sensitive to the starting values as we are trying to find local minima/maxima. GEE is also easy to interpret and allows a lot of flexibility for different correlation structures. GLMM methods may be more generalizable to missing data compared to GEE, and it may also be better for small sample sizes when the validity of the sandwich estimator for GEE is questionable. Furthermore, the likelihood approach may be more stable, although issues may arise due to small samples as well. Furthermore, if the focus is on the clusters themselves, then these GLMM methods may be more desirable compared to GEE. Lastly, the interpretability between these methods and GEE are different, as we are looking at marginal vs conditional models with respect to the cluster. 
+
+\newpage
+# Problem 6
+
+## Part 6a
+
+### Find $f=(f_1,f_2)$ such that $h(\theta)$ is an unbiased estimating equation
+
+Let $f_1(\theta)=2\mu$. Then $\sum_{k=1}^K E_Y[Y_{k1}+Y_{k2}-2\mu]=\sum_{k=1}^K (\mu+\mu-2\mu)=0$.
+
+Let $f_2(\theta)=\rho(\mu(1-\mu))+\mu^2$. 
+
+$$
+\begin{aligned}
+E[Y_{k1}Y_{k2}-\rho_0(\mu(1-\mu))-\mu^2]&=E[Y_{k1}Y_{k2}]-\rho(\mu(1-\mu))-\mu^2\\
+Cov(Y_{k1},Y_{k2})&= E[Y_{k1}Y_{k2}] - E[Y_{k1}]E[Y_{k2}]\\
+&=E[Y_{k1}Y_{k2}] - \mu^2\\
+Corr(Y_{ki},Y_{ki2})&=\rho=\frac{Cov(Y_{k1},Y_{k2})}{\sqrt{Var(Y_{k1})Var(Y_{k2})}}\\
+Var(Y_{ki})&=E[Y_{ki}^2]-E[Y_{ki}]^2\\
+&=\mu(1-\mu)\\
+\rho&=\frac{E[Y_{k1}Y_{k2}] - \mu^2}{\sqrt{\mu(1-\mu)\mu(1-\mu)}}\\
+E[Y_{k1}Y_{k2}]&=\rho(\mu(1-\mu))+\mu^2\\
+\sum_{k=1}^K E[Y_{k1}Y_{k2}-\rho(\mu(1-\mu))-\mu^2]&=\sum_{k=1}^K [\rho(\mu(1-\mu))+\mu^2-\rho(\mu(1-\mu))-\mu^2]\\
+&=0
+\end{aligned}
+$$
+
+### Solve $h(\theta)$ analytically. 
+
+$$
+\begin{aligned}
+&\sum_{k=1}^KY_{k1} + Y_{k2} - 2\mu=0\\
+\hat{\mu} &= \sum_{k=1}^K \frac{(Y_{k1} + Y_{k2})}{2K}\\
+&\sum_{k=1}^K(Y_{k1}Y_{k2}) - K\rho(\mu(1-\mu)) + K\mu^2 =0\\
+\hat{\rho}&= \frac{\sum_{k=1}^K(Y_{k1}Y_{k2})+K\mu^2}{K(\mu(1-\mu))}\\
+&=\frac{\sum_{k=1}^K(Y_{k1}Y_{k2})+K\left[\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}\right]^2}{K\left[\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}(1-\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}) \right]}
+\end{aligned}
+$$
+
+### Show that $(\hat{\mu}, \hat{\rho})$ converges in probability to $(\mu_0, \rho_0)$.
+
+From the law of large numbers, 
+
+$$
+\begin{aligned}
+\underset{K\to \infty}{\lim} \hat{\mu} &= \underset{K\to \infty}{\lim} \sum_{k=1}^K \frac{(Y_{k1} + Y_{k2})}{2K} \stackrel{p}{\to} \mu_0
+\end{aligned}
+$$
+
+Similarly for $\rho$:
+
+$$
+\begin{aligned}
+\underset{K\to \infty}{\lim} \hat{\rho} &=  \underset{K\to \infty}{\lim} \frac{\sum_{k=1}^K(Y_{k1}Y_{k2})+K\left[\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}\right]^2}{K\left[\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}(1-\frac{\sum_{k=1}^K(Y_{k1} + Y_{k2})}{2K}) \right]}\\
+&\stackrel{p}{\to}  \frac{Cov(Y_{k1},Y_{k2})}{Var(Y_{k1}, Y_{k2})}\\
+&= \rho_0
+\end{aligned}
+$$
+
+Also from lecture, we proved using a Taylor series expansion, CLT, and Slutsky's theorem that
+
+$$
+\begin{aligned}
+\sqrt{K}(\hat{\theta}-\theta_0) &\to N(0, F^{-1}I(F^{-1})^T)\\
+\hat{\theta} &\to N(\theta_0, \frac{F^{-1}I(F^{-1})^T}{K}) 
+\end{aligned}
+$$
+
+which gives the same result as $K \to \infty$.
+
+\newpage
+## Part 6b
+
+### What type of missingness mechanism is the above?
+
+It is MNAR since it depends on potential missing $Y_{ki}$ values.
+
+### Explain why $h(\theta)$ makes sense as a complete-case EE.
+
+It makes sense as a complete-case EE because for the first EE, it separates the two terms and includes it based on if the observation has been removed. This works because the observations have the same mean, allowing the $f_1(\theta)$ function to be separated. The second EE works because it looks at the correlation between the two values. If one of the observations is missing, then it does not include it which makes sense as it requires both observations to have a correlation.
+
+### Compute $E[h(\theta)]$ under the above missingness model.
+
+$$
+\begin{aligned}
+\sum_{k=1}^KE_{R,Y}[R_{k1}(Y_{k1}-\mu) + R_{k2}(Y_{k2}-\mu)]&=
+\sum_{k=1}^K E_Y[E_{R|Y}[R_{k1}](Y_{k1}-\mu) + E_{R|Y}[R_{k2}](Y_{k2}-\mu)]\\
+&=\sum_{k=1}^K E_Y[\pi_{k1}(Y_{k1}-\mu)  + \pi_{k2}(Y_{k2}-\mu)]\\
+&=\sum_{k=1}^K E_Y[expit(w_0+w_1Y_{k1})(Y_{k1}-\mu)  +expit(w_0+w_1Y_{k2})(Y_{k2}-\mu)]\\
+&=\sum_{k=1}^K [2expit(w_0+w_1)(1-\mu)\mu +2expit(w_0)(-\mu)(1-\mu) ]
+\end{aligned}
+$$
+
+Joint probability table:
+
+|        | $Y_{k1}=1$ | $Y_{k1}=0$ |
+|--------|--------|--------|
+| $Y_{k2}=1$ |  $f_2(\theta)$      |    $\mu-f_2(\theta)$    |
+| $Y_{k2}=0$|  $\mu-f_2(\theta)$      |  $1-2\mu+f_2(\theta)$      |
+
+
+$$
+\begin{aligned}
+\sum_{k=1}^KE_{R,Y}[R_{k1}R_{k2}(Y_{k1}Y_{k2}-f_2(\theta))] &=\sum_{k=1}^KE_Y[E_{R|Y}[R_{k1}R_{k2}](Y_{k1}Y_{k2}-f_2(\theta)]\\
+&=\sum_{k=1}^KE_Y[expit(\xi_0 + \xi(Y_{k1}+Y_{k2}))(Y_{k1}Y_{k2}-f_2(\theta)]\\
+&=\sum_{k=1}^K [expit(\xi_0+2\xi_1)(1-f_2(\theta))f_2(\theta) + 2expit(\xi_0 + \xi_1)(-f_2(\theta))(\mu-f_2(\theta)) \\
+&\qquad \qquad+ expit(\xi_0)(-f_2(\theta))(1-2\mu+f_2(\theta))]
+\end{aligned}
+$$
+
+### Under what necessary and sufficient conditions will $h(\theta)$ be an unbiased estimating equation?
+
+If $w_1=\xi_1=0$, then $h(\theta)$ is unbiased.
+
+$$
+\begin{aligned}
+&\sum_{k=1}^K [2expit(w_0+w_1)(1-\mu)\mu +2expit(w_0)(-\mu)(1-\mu) ]\\
+&=\sum_{k=1}^K [2expit(w_0)(1-\mu)\mu +2expit(w_0)(-\mu)(1-\mu) ]\\
+&= 0\\
+&\sum_{k=1}^K [expit(\xi_0+2\xi_1)(1-f_2(\theta))f_2(\theta) + 2expit(\xi_0 + \xi_1)(-f_2(\theta))(\mu-f_2(\theta)) \\
+&\qquad \qquad+ expit(\xi_0)(-f_2(\theta))(1-2\mu+f_2(\theta))]\\
+&=\sum_{k=1}^K [expit(\xi_0)[f_2(\theta)-f_2(\theta)^2 -2f_2(\theta)\mu + 2f_2(\theta)^2 - f_2(\theta) + 2f_2(\theta)\mu-f_2(\theta)^2]]\\
+&=0
+\end{aligned}
+$$
+
+### Compute the bias of the estimator and construct a new $h(\theta)$.
+
+For the first EE, the bias is:
+
+$$
+expit(w_0+w_1) - expit(w_0)
+$$
+
+So an unbiased EE would be:
+
+$$
+\sum_{k=1}^KE_{R,Y}\left[R_{k1}(Y_{k1}-\mu) + R_{k2}(Y_{k2}-\mu) - expit(w_0+w_1) + expit(w_0) \right]
+$$
+
+For the second EE, the bias is:
+
+$$
+\begin{aligned}
+&\sum_{k=1}^K [expit(\xi_0+2\xi_1)(1-f_2(\theta))f_2(\theta) + 2expit(\xi_0 + \xi_1)(-f_2(\theta))(\mu-f_2(\theta)) \\
+&\qquad \qquad+ expit(\xi_0)(-f_2(\theta))(1-2\mu+f_2(\theta))]\\
+&\sum_{k=1}^K [expit(\xi_0+2\xi_1)(1-f_2(\theta)) - 2expit(\xi_0 + \xi_1)(\mu-f_2(\theta))  -expit(\xi_0)(1-2\mu+f_2(\theta))]
+\end{aligned}
+$$
+
+So an unbiased EE would be 
+
+$$
+\sum_{k=1}^KE[R_{k1}R_{k2}(Y_{k1}Y_{k2}-f_2(\theta)) - [expit(\xi_0+2\xi_1)(1-f_2(\theta)) - 2expit(\xi_0 + \xi_1)(\mu-f_2(\theta))  -expit(\xi_0)(1-2\mu+f_2(\theta))]]
+$$
+
+
+
+
+
+
+
+
+
+
+

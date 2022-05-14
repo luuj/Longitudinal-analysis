@@ -1,0 +1,246 @@
+---
+title: "BST245 Homework 1"
+author: "Jonathan Luu"
+output: pdf_document
+header-includes:
+- |
+  ```{=latex}
+  \usepackage{booktabs}
+  \usepackage{float}
+  ```
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+library(ggplot2)
+library(nlme)
+```
+
+# Problem 1
+
+The dataset quiz data.csv shows quiz scores of five quizzes given throughout the semester in
+a statistics class. There are 5 variables (ID, gender, major, score, quiz) and 260 observations in
+total. We wish to see if there is an improving trend over time for all students and if the trend is the
+same for male and female students and the same for students from different majors respectively.
+
+## Part 1a
+Provide
+
+(i) Box plots which summarize scores among the five quizzes
+(ii) Box plots for the five quizzes stratified by gender
+(iii) Trajectory plots for the five quizzes stratified by gender (see Part 1, Slide 31)
+(iv) Box plots for the five quizzes stratified by major
+(v) Trajectory plots for the five quizzes stratified by major (see Part 1, Slide 31)
+
+Let's be careful about the stratified box plots. Does it make more sense to have five plots,
+each showing box plots for the different genders/majors? Or to have two/three gender/major
+plots, each having five box plots for the different quizzes? Remember the question of interest.
+Comment on anything interesting you might see.
+
+```{r, echo=FALSE}
+#Read in data
+mydata<-read.csv("C:\\Users\\Jonathan\\Dropbox\\School\\Harvard\\BST245\\Homework 1\\quiz_data.csv")
+mydata<-mydata[,-1]
+mydata[c(2:3,5)]<-lapply(mydata[c(2:3,5)], as.factor)
+```
+
+### Plot 1a.i
+```{r, echo=FALSE}
+e <- ggplot(mydata, aes(x = quiz, y = score))
+e + geom_boxplot() + xlab("Quiz Number") + ylab("Score") + ggtitle("Quiz Score Summary")
+```
+
+When considering the marginal box plots, there is an increasing trend over time. The average score for quiz 1 is 65, and this average score monotonically increases to 77 for quiz 5. There are only a few outliers, mainly for quiz 5.  
+
+### Plot 1a.ii
+```{r, echo=FALSE}
+e <- ggplot(mydata, aes(x = quiz, y = score))
+e + geom_boxplot() + xlab("Quiz Number") + ylab("Score") + ggtitle("Quiz Score Summary by Gender") + facet_wrap(~gender)
+```
+
+Since we are interested in comparing quiz score trends over time between genders/majors, it would make more sense to plot using option 2: two/three gender/major plots, each having five box plots for the different quizzes. 
+
+For females, their mean scores are monotonically increasing over time, but the range of their averages is smaller compared to males. For males, their mean scores initially increase between quiz 1 and 3, but stagnate and even slightly decrease between quiz 3 and 5. Females initially do better than males, but the average male score is higher after quiz 3.
+
+### Plot 1a.iii
+```{r, echo=FALSE}
+e <- ggplot(mydata, aes(x = quiz, y = score, group=ID))
+e + geom_line() + xlab("Quiz Number") + ylab("Score") + ggtitle("Quiz Score Trajectory Plot by Gender") + facet_wrap(~gender)
+```
+For females, the trajectory overall seems to be increasing over time, with only a few individuals getting worse scores over time. For males, the trajectory variance seems to be larger, with more individuals having extreme score changes over time and more individuals getting worse scores over time.
+
+### Plot 1a.iv
+```{r, echo=FALSE}
+e <- ggplot(mydata, aes(x = quiz, y = score))
+e + geom_boxplot() + xlab("Quiz Number") + ylab("Score") + ggtitle("Quiz Score Summary by Major") + facet_wrap(~major)
+```
+All three majors seem to increase over time, with computer science majors having the highest average scores overall. 
+
+
+### Plot 1a.v
+```{r, echo=FALSE}
+e <- ggplot(mydata, aes(x = quiz, y = score, group=ID))
+e + geom_line() + xlab("Quiz Number") + ylab("Score") + ggtitle("Quiz Score Trajectory Plot by Major") + facet_wrap(~major)
+```
+The three plots look relatively similar, although the math major has one major outlier scoring very low for quiz 3. 
+
+Overall, the trends for both major and gender agree with the overall trend - that the average score increases over time.
+
+\newpage
+## Part 1b
+Provide a numerical summary of the five test scores against gender and major (univariately).
+Such a summary could be, for example, two tables showing the means and standard deviations for (Quiz, Gender) and (Quiz, Major) combinations. Would a standard ANOVA be appropriate to test whether there exists a difference for each quiz among the different genders and among the different majors? (Perhaps this is a good place to check the assumptions associated with ANOVA.) Perform ANOVAs anyway and report your results in a clean and compact way (you should have performed a total of 10 ANOVA tests). Draw an overall conclusion for quiz vs gender and quiz vs major at level alpha = 0.05 and accounting for the
+multiple comparisons with the Bonferroni correction.
+
+```{r, echo=FALSE}
+# Calculate table values
+gender.table<-aggregate(score~quiz+gender, data=mydata, FUN = function(x) c(mn=mean(x), sd=sd(x)))
+major.table<-aggregate(score~quiz+major, data=mydata, FUN = function(x) c(mn=mean(x), sd=sd(x)))
+```
+
+\begin{center} Table 1. Numerical summary of test scores against gender \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+     & \multicolumn{2}{c}{Average Score (SD)}     \\ \midrule
+Quiz & Female        & Male          \\ \midrule
+1    & 68.15 (16.23) & 63.04 (15.23) \\
+2    & 72.27 (13.66) & 65.81 (14.54) \\
+3    & 73.31 (16.48) & 74.46 (20.26) \\
+4    & 76.77 (12.16) & 78.08 (12.33) \\
+5    & 78.50 (13.27) & 76.85 (13.53) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\begin{center} Table 2. Numerical summary of test scores against major \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+     & \multicolumn{3}{c}{Average Score (SD)}        \\ \midrule
+Quiz & Comp          & Math          & Stat          \\ \midrule
+1    & 67.75 (15.80) & 62.55 (13.25) & 65.56 (17.14) \\
+2    & 71.75 (14.39) & 60.73 (13.80) & 70.96 (13.71) \\
+3    & 78.13 (15.52) & 70.09 (23.89) & 72.84 (17.41) \\
+4    & 80.25 (11.72) & 73.27 (12.60) & 77.44 (12.17) \\
+5    & 78.19 (15.16) & 76.45 (11.86) & 77.88 (12.14) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+A major assumption for ANOVA is that the samples are drawn independently of each other. Since we are looking at longitudinal data, an individual's scores over time are not independent; therefore, a standard ANOVA would not be appropriate. Another ANOVA assumption is that the variance between groups is the same. Roughly looking at the variance values between female/male and between majors, it does not seem that this assumption holds. Finally, the third assumption is that the response for each factor level is normal. 
+
+```{r, echo=FALSE}
+gender.aov<-aov(score~gender,data=mydata)
+qqnorm(gender.aov$residuals, main="Gender QQ Plot")
+qqline(gender.aov$residuals)
+
+major.aov<-aov(score~major,data=mydata)
+qqnorm(major.aov$residuals, main="Major QQ Plot")
+qqline(major.aov$residuals)
+```
+
+These qqplots indicate that these factor levels are relatively normal barring a few tail points. However, since the previous two assumptions failed to hold, ANOVA is not an appropriate test
+
+
+```{r, eval=FALSE, echo=FALSE}
+# Gender ANOVA
+lapply(c(1:5), function(x){
+  gender.aov<-aov(score~gender,data=mydata[mydata$quiz==x,])
+  summary(gender.aov)
+})
+
+# Major ANOVA
+lapply(c(1:5), function(x){
+  major.aov<-aov(score~major,data=mydata[mydata$quiz==x,])
+  summary(major.aov)
+})
+```
+\begin{center} Table 3. ANOVA p-values for Quiz vs. Gender and Quiz vs. Major \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\hline
+Quiz & Gender & Major \\ \hline
+1    & 0.247  & 0.710 \\
+2    & 0.105  & 0.093 \\
+3    & 0.823  & 0.502 \\
+4    & 0.702  & 0.348 \\
+5    & 0.658  & 0.943 \\ \hline
+\end{tabular}
+\end{table}
+
+At a significance level of 0.05, there is not a statistically significant difference between male and female scores for any of the quizzes, even before Bonferroni correction. Similarly, there is not a statistically significant score difference between any of the majors for any of the quizzes, even before Bonferroni correction. With Bonferroni correction, the new significance level would be p=0.01 (0.05/5 levels).
+
+\newpage
+## Part 1c
+The method used in part (b) is unsatisfying because a Bonferroni correction is known to be
+conservative. How can we aggregate all the quiz information without stratifying? Try to fit a linear mixed effects in R for score vs gender, major, and quiz number as covariates
+while accounting for the repeated measurements from the same individuals. Performing
+Wald tests, what can you conclude? Don't worry so much about what the (1|ID) is doing,
+as we'll learn more about mixed models shortly.
+
+```{r, echo=FALSE}
+mod = lme(score ~ gender + major + quiz,random=~1|ID, data=mydata)
+summary(mod)
+```
+
+Using this linear mixed effect model and a significance level of 0.05, there is still not a statistically significant difference between male and female scores after accounting for the repeated measurements from the same individuals (p=0.803). Similarly, there is not a statistically significant difference between computer science and math major scores (p=0.211) or computer science and statistical major scores (p=0.595) after adjustment. Therefore, we can conclude there is an improving trend over time for all students and that the trend is the same for male and female students and the same for students from different majors.
+
+\newpage
+# Problem 2
+Suppose we have data $Y1,...,Y_T$ with $E[Y_t]=\mu$ and $Var(Y_t)=\sigma^2$. Recall that a correlation structure is stationary if $Corr(Y_t,Y_{t'})$ only depends on the absolute different $|t-t'|$ for $t \ne t'$. Assume $Y_t$ has a stationary correlation structure and denote $\rho_{|t-t'|}=Corr(Y_t,Y_{t'})$ as the autocorrelation function.
+
+## Part 2a
+Suppose we estimate $\mu$ with $\hat{\mu}=T^{-1}\sum_{t=1}^T Y_t$. Compute $Var(\hat{\mu})$ in terms of $\sigma^2, \rho_1,...\rho_{T-1}, T$.
+
+$$
+\begin{aligned}
+\hat{\mu}&=T^{-1}\sum_{t=1}^T Y_t\\
+Var(\hat{\mu})&=\frac{1}{T^2}Var(\sum_{t=1}^T Y_t)\\
+&=\frac{\sigma^2}{T^2}\sum_{t=1}^T \sum_{t'=1}^T \rho_{|t-t'|}\\
+&=\frac{\sigma^2}{T^2}\sum_{u=-(T-1)}^{T-1} (T-|u|)\rho_u 
+\end{aligned}
+$$
+
+
+## Part 2b
+Show that if $\rho_u \to 0$ as $u \to \infty$, then $\hat{\mu}$ is consistent for $\mu$ as $T \to \infty$.
+
+$$
+\begin{aligned}
+E[\hat{\mu}]&=E \left[\frac{1}{T}\sum_{t=1}^T Y_t \right]\\
+&=\frac{1}{T}\sum_{t=1}^TE[Y_t]\\
+&=\mu \quad \mbox{(Unbiased)}\\
+Var(\hat{\mu})&= \frac{\sigma^2}{T^2} [T + 2(T-1)\rho_1 + 2(T-2)\rho_2 ... + \rho_{T-1} ]\\
+&=\frac{\sigma^2}{T^2}\left[1+2(1-\frac{1}{T})\rho_1 + 2(1-\frac{2}{T}\rho_2)...\right]\\
+&\approx \frac{\sigma^2}{T^2} [1+2\rho_1 + 2\rho_2...] \quad \mbox{(For large T)}\\
+&\to 0 \; \mbox{as} \; \rho \to 0 \; \mbox{and} \; T \to \infty
+\end{aligned}
+$$
+
+If $\rho_u \to \infty$ as $u \to \infty$, $[1+2\rho_1 + 2\rho_2...] \ll T$ as $T \to \infty$. Therefore, $Var(\hat{\mu}) \to 0$. By Chebyshev's inequality, since $\hat{\mu}$ is both unbiased and its variance goes to 0, $\hat{\mu}$ is a consistent estimator for $\mu$.
+
+\newpage
+## Part 2c
+Suppose instead $Var(Y_t) = \sqrt{t}\sigma^2$, but we also know that $\rho_u \le 0$ for all u. Show that 
+$\hat{\mu}$ is still consistent for $\mu$.
+
+$$
+\begin{aligned}
+Var(\hat{\mu})&=\frac{1}{T^2} \left[\sum_{t=1}^T Var(Y_t) + 2\sum_{t=1}^{T-1}Cov(Y_t,Y_{t+1}) + 2\sum_{t=1}^{T-2}Cov(Y_t,Y_{t+2}) ... + 2Cov(Y_t,Y_{T-1}) \right]\\
+Cov(Y_t, Y_{t+k})&=\sqrt{Var(Y_t)Var(Y_{t+k})}*corr(Y_t,Y_{t+k})\\
+&=\sqrt{t^{\frac{1}{2}}\sigma^2 (t+k)^{\frac{1}{2}}\sigma^2}*\rho_k\\
+&=\sigma^2 t^{\frac{1}{4}}(t+k)^{\frac{1}{4}}\rho_k\\
+Var(\hat{\mu})&=\frac{1}{T^2}\left[\sum_{t=1}^T t^{\frac{1}{2}}\sigma^2 + 2\sum_{t=1}^{T-1} \sigma^2 t^{\frac{1}{4}}(t+1)^{\frac{1}{4}}\rho_1 + 2\sum_{t=1}^{T-2} \sigma^2 t^{\frac{1}{4}}(t+2)^{\frac{1}{4}}\rho_2 + ... \right]\\
+&=\frac{\sigma^2}{T^2} \left[\sum_{t=1}^T t^{\frac{1}{2}} + 2\sum_{t=1}^{T-1}  t^{\frac{1}{4}}(t+1)^{\frac{1}{4}}\rho_1 + 2\sum_{t=1}^{T-2} t^{\frac{1}{4}}(t+2)^{\frac{1}{4}}\rho_2 + ... \right]\\
+&\le \frac{\sigma^2}{T^2} \left[\left(T\sum_{i=1}^T t_i\right)^{\frac{1}{2}} + 2\sum_{t=1}^{T-1}  t^{\frac{1}{4}}(t+1)^{\frac{1}{4}}\rho_1 + 2\sum_{t=1}^{T-2} t^{\frac{1}{4}}(t+2)^{\frac{1}{4}}\rho_2 + ...\right] \quad \mbox{(Jensen)}\\
+&\le \frac{\sigma^2}{T^2} \left(T\sum_{i=1}^T t_i\right)^{\frac{1}{2}} \quad (\rho \le 0)\\
+&\to 0 \; \mbox{as} \; T \to \infty
+\end{aligned}
+$$
+
+Therefore, even under these new conditions, $\hat{\mu}$ is still a consistent estimator for $\mu$.
+
+

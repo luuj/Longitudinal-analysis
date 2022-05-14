@@ -1,0 +1,427 @@
+---
+title: "BST245 HW3"
+author: "Jonathan Luu"
+output: pdf_document
+header-includes:
+- |
+  ```{=latex}
+  \usepackage{booktabs}
+  \usepackage{float}
+  ```
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+
+# Read in data
+arth<-read.table("C:\\Users\\Jonathan\\Dropbox\\School\\Harvard\\BST245\\Homework 3\\arthritb.dat")
+colnames(arth)<-c("id", "arthrit", "tx", "time")
+
+# Add dummy variables for time
+arth$timeA <- 0
+arth$timeA[arth$time==1] <- 1
+arth$timeB <- 0
+arth$timeB[arth$time==2] <- 1
+
+library(geepack)
+library(gee)
+library(ggplot2)
+library(dplyr)
+library(car)
+library(lme4)
+```
+
+# Problem 1
+The data for this problem come from a randomized clinical trial to determine the efficacy of the
+drug auranofin versus placebo in the treatment of rheumatoid arthritis.
+
+The outcome of interest is self-assessment of arthritis, coded as 0=poor and 1=good. Individuals
+were randomized to one of the two treatment groups after baseline self-assessment of arthritis, and
+then took the treatment for the length of the study. All 294 patients were observed at baseline, and
+1 and 3 months after randomization. The self-assessment of arthritis at these three time points
+represent the responses of the dichotomous dependent variable across time. The variables in the
+dataset are ID (subject ID), ARTHRIT (dependent variable coded 0=poor and 1=good), TXAURA
+(treatment group coded 0=placebo and 1=auranofin), and TIME (coded 0=baseline, 1=month 1,
+2=month 3).
+
+For this problem, use dummy-codes for the effect of time treating baseline as the reference cell.
+Let's call the resulting two dummy-codes TIMEA and TIMEB. Given that randomization was done
+after the baseline assessment, and therefore subjects are statistically the same at baseline, use the
+following regressors: TIMEA, TIMEB, TX\*TIMEA, TX\*TIMEB.
+
+## Part 1a.i
+Based on the observed correlations select a reasonable working correlation structure
+and estimate a GEE logistic regression model with the above 4 regressors. Describe the
+meaning of the estimated regression coefficients in this model. Plot the observed and
+fitted arthritis proportions at each time point and for each treatment group (maybe
+something like times 0, 1, 2 along the horizontal axis, line color for treatment group,
+line type for observed/fitted). How well does the model fit the observed proportions
+for the two groups at the three time points?
+
+```{r}
+# Working independence
+fit0.pack <- geeglm(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+               family=binomial, scale.fix=TRUE, corstr = "independence")
+# Working exchangeable
+fit1.pack <- geeglm(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+               family=binomial, scale.fix=TRUE, corstr = "exchangeable")
+# Working AR1
+fit2.pack <- geeglm(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+               family=binomial, scale.fix=TRUE, corstr = "ar1")
+```
+
+```{r, eval=FALSE}
+# Working independence
+fit0.gee <- gee(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+               family=binomial, scale.fix=TRUE, corstr = "independence")
+# Working exchangeable
+fit1.gee <- gee(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+               family=binomial, scale.fix=TRUE, corstr = "exchangeable")
+# Working AR1
+fit2.gee <- gee(arthrit ~ timeA + timeB + tx:timeA + tx:timeB, id=id, data=arth, 
+                family=binomial, scale.fix=TRUE, corstr = "AR-M", Mv=1)
+```
+
+\begin{center}Table 1: Summary of results \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+                              & \multicolumn{3}{c}{gee()}        & \multicolumn{2}{c}{geeglm()} \\ \cmidrule(l){2-6} 
+                              & Est   & SE (Model) & SE (Robust) & Est        & SE (Robust)     \\ \midrule
+\textbf{Working Independence} &       &            &             &            &                 \\
+\quad timeA                         & 0.677 & 0.220      & 0.181       & 0.677      & 0.181           \\
+\quad timeB                         & 0.370 & 0.228      & 0.201       & 0.370      & 0.201           \\
+\quad Tx*timeA                      & 0.058 & 0.241      & 0.241       & 0.058      & 0.241           \\
+\quad Tx*timeB                      & 0.646 & 0.245      & 0.245       & 0.646      & 0.245           \\
+\textbf{Working Exchangeable} &       &            &             &            &                 \\
+\quad timeA                         & 0.683 & 0.181      & 0.172       & 0.683      & 0.172           \\
+\quad timeB                         & 0.377 & 0.187      & 0.196       & 0.377      & 0.196           \\
+\quad Tx*timeA                      & 0.045 & 0.221      & 0.217       & 0.045      & 0.217           \\
+\quad Tx*timeB                      & 0.632 & 0.224      & 0.233       & 0.632      & 0.233           \\
+\quad Rho                           & 0.402 &            &             & 0.402      & 0.040           \\
+\textbf{Working AR1}          &       &            &             &            &                 \\
+\quad timeA                         & 0.684 & 0.175      & 0.172       & 0.685      & 0.172           \\
+\quad timeB                         & 0.373 & 0.210      & 0.197       & 0.374      & 0.196           \\
+\quad Tx*timeA                      & 0.043 & 0.216      & 0.217       & 0.042      & 0.217           \\
+\quad Tx*timeB                      & 0.639 & 0.240      & 0.234       & 0.638      & 0.233           \\
+\quad Rho                           & 0.443 &            &             & 0.485      & 0.041          
+\end{tabular}
+\end{table}
+
+From the table, the similarity between the model-based and robust standard errors for the estimates based on a working exchangeable correlation structure suggests that this might be a reasonable approximation to the true dependence structure. However, the AR1 model may also be reasonable for a similar reason and  that the correlation is expected to decay as the lag increases. I will choose to work with the AR1 correlation structure for this problem. Furthermore, since we are dealing with a large sample size and using robust standard errors which yield valid standard errors regardless, the selected covariance structure has less of an influence on the final model.
+
+\newpage
+```{r}
+summary(fit2.pack)
+```
+
+The odds ratio $exp(\beta_{timeA})$ is the relative difference in the odds of a good assessment of arthritis for patients on placebo between baseline and time point A, holding the other variables constant.
+
+The odds ratio $exp(\beta_{timeB})$ is the relative difference in the odds of a good assessment of arthritis for patients on placebo between baseline and time point B, holding the other variables constant.
+
+Conditional on being at time A, the odds ratio $exp(\beta_{timeA:tx})$ is the difference in the odds of a good assessment of arthritis between patients on treatment vs. placebo, holding the other variables constant.
+
+Similarly, conditional on being at time B, the odds ratio $exp(\beta_{timeB:tx})$ is the difference in the odds of a good assessment of arthritis between patients on treatment vs. placebo, holding the other variables constant.
+
+\newpage
+```{r, warning=FALSE, message=FALSE}
+# Get observed proportions
+obs.prop <- as.data.frame(arth %>%
+  count(arthrit, time, tx) %>%
+  group_by(time, tx) %>%
+  mutate(prop = n / sum(n))) %>%
+  filter(arthrit==1)
+obs.prop$type <- factor("obs")
+
+# Get fitted proportions
+arth.fit<-cbind(arth,fit=fit2.pack$fitted.values)
+fit.prop<-as.data.frame(arth.fit %>%
+  group_by(time,tx) %>%
+  summarize(prop=mean(fit)))
+fit.prop$type <- factor("fit")
+
+# Plot
+plot.var <- rbind(obs.prop[,c(2:3,5:6)], fit.prop)
+plot.var$tx <- as.factor(plot.var$tx)
+p <- ggplot(plot.var, aes(x = time, y = prop, shape=type, colour=tx)) + 
+  geom_point() + geom_line() + 
+  labs(title="Observed vs. fitted proportions of good arthritis status - GEE")
+plot(p)
+```
+The model seems to fit the observed proportions very well at all 3 time points for both treatment and control groups.
+
+## Part 1a.ii
+From your GEE fit, perform a hypothesis test to see if the odds ratio of auranofin vs
+placebo is modified by time (i.e. do the coefficients of TX\*TIMEA and TX\*TIMEB differ).
+
+```{r}
+# Test timeA:tx - timeB:tx = 0
+linearHypothesis(fit2.pack,c(0,0,0,1,-1), rhs=0)
+
+# Manual test
+beta <- matrix(c(0.04187, 0.63776))
+lin <- matrix(c(1,-1), nrow=1)
+cov.mat <- matrix(c(0.047271, 0.0181847, 0.0181847,0.0541525), nrow=2)
+
+(lin%*%beta)%*%solve(lin%*%cov.mat%*%t(lin))%*%(lin%*%beta)
+pchisq(5.46, df=1, lower.tail=FALSE)
+```
+
+I tested the hypothesis $\beta_{timeA:tx} -\beta_{timeB:tx}=0$. The odds ratio of auranofin vs. placebo is significantly modified by time (p=0.021). 
+
+\newpage
+## Part 1a.iii
+What can we conclude regarding the efficacy of auranofin in the treatment of arthritis?
+Your answer here should again be supported by a hypothesis test, and the form of this
+test will depend on your answer in (a) ii.
+
+```{r}
+# Test timeA:tx = timeB:tx = 0
+linearHypothesis(fit2.pack,matrix(c(0,0,0,0,0,0,1,0,0,1), nrow=2), rhs=c(0,0))
+```
+
+Since the odds ratio was significantly modified by time, I chose to test the hypothesis $\beta_{timeA:tx} = \beta_{timeB:tx} = 0$.
+
+Therefore, after fitting this logistic GEE model with a working AR1 correlation structure, we can conclude that auranofin is significantly associated with better self-assessed arthritis outcomes compared to placebo over time (p=0.018).
+
+\newpage
+## Part 1b.i
+Estimate a random-intercepts logistic model with the above 4 regressors. Describe the
+meaning of the estimated regression coefficients in this model. Plot the observed and
+fitted arthritis proportions at each time point and for each treatment group. How well
+does the model fit the observed proportions for the two groups at the three time points?
+
+```{r}
+# Fit GLMM model
+fit.RI <- glmer(arthrit ~ timeA + timeB + tx:timeA + tx:timeB + (1 | id), 
+                data=arth, family=binomial, nAGQ=10)
+summary(fit.RI)
+```
+
+The odds ratio $exp(\beta_{timeA})$ is the relative difference in the odds of a good assessment of arthritis for patients on placebo between baseline and time point A, holding the other variables constant including $\gamma_{0k}$.
+
+The odds ratio $exp(\beta_{timeB})$ is the relative difference in the odds of a good assessment of arthritis for patients on placebo between baseline and time point B, holding the other variables constant including $\gamma_{0k}$..
+
+Conditional on being at time A and the same cluster/individual, the odds ratio $exp(\beta_{timeA:tx})$ is the difference in the odds of a good assessment of arthritis between patients on treatment vs. placebo, holding the other variables constant.
+
+Similarly, conditional on being at time B and the same cluster/individual, the odds ratio $exp(\beta_{timeB:tx})$ is the difference in the odds of a good assessment of arthritis between patients on treatment vs. placebo, holding the other variables constant.
+
+```{r, warning=FALSE, message=FALSE}
+# Get fitted proportions for GLMM
+glmm.fit<-cbind(arth,fit=fitted(fit.RI))
+glmm.prop<-as.data.frame(glmm.fit %>%
+  group_by(time,tx) %>%
+  summarize(prop=mean(fit)))
+glmm.prop$type <- factor("fit")
+
+# Plot
+glmm.var <- rbind(obs.prop[,c(2:3,5:6)], glmm.prop)
+glmm.var$tx <- as.factor(glmm.var$tx)
+q <- ggplot(glmm.var, aes(x = time, y = prop, shape=type, colour=tx)) + 
+  geom_point() + geom_line() + 
+  labs(title="Observed vs. fitted proportions of good arthritis status - GLMM")
+plot(q)
+```
+The model still fits relatively well, although it seems to be slightly underestimating when compared to the observed values. 
+
+## Part 1b.ii
+From your GLMM fit, perform a hypothesis test to see if the odds ratio of auranofin vs
+placebo is modified by time (i.e. do the coefficients of TX\*TIMEA and TX\*TIMEB differ).
+
+
+```{r}
+# Test timeA:tx - timeB:tx = 0
+linearHypothesis(fit.RI, c(0,0,0,1,-1), rhs=0)
+```
+
+Yes, the odds ratio of auranofin vs. placebo is modified by time (p=0.025).
+
+## Part 1b.iii
+What can we conclude regarding the efficacy of auranofin in the treatment of arthritis?
+Your answer here should again be supported by a hypothesis test, and the form of this
+test will depend on your answer in (b) ii.
+
+```{r}
+# Test timeA:tx = timeB:tx = 0
+linearHypothesis(fit.RI,matrix(c(0,0,0,0,0,0,1,0,0,1), nrow=2), rhs=c(0,0))
+```
+
+Since the odds ratio was significantly modified by time, I chose to test the hypothesis $\beta_{timeA:tx} = \beta_{timeB:tx} = 0$.
+
+Therefore, after fitting this logistic GLMM model with a random intercept, we can conclude that auranofin is significantly associated with better self-assessed arthritis outcomes compared to placebo over time (p=0.016).
+
+## Part 1c
+How do the estimates from (a) and (b) relate to each other? For example, do they provide
+similar inference? How do the magnitudes of the coefficients compare? Will those magnitudes
+remain roughly in the same ratio in general? Write up any other final conclusions in a way
+that a medical doctor could understand.
+
+\begin{center}Table 2: Summary of estimates comparing GEE and GLMM \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+         & GEE   & GLMM  \\ \midrule
+timeA    & 0.683 & 1.169 \\
+timeB    & 0.377 & 0.633 \\
+timeA:tx & 0.045 & 0.080 \\
+timeB:tx & 0.632 & 1.109 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+Yes, the two estimates provide similar inference. The GEE model gave a p-value of 0.021 when testing if the odds ratio of treatment was modified by time, and a p-value of 0.018 when testing the efficacy of auranofin. The GLMM model gave a p-value of 0.025 when testing if the odds ratio of treatment was modified by time, and a p-value of 0.016 when testing the efficacy of auranofin. All of these p-values are significant, assuming a significance level of 0.05. 
+
+The magnitudes of the coefficients are different from each other - from lecture, this difference is roughly $\beta \approx \beta^* (1+c^2\sigma_\gamma^2)^{-\frac{1}{2}}$. When using the values for timeA, we can see that this this approximation is $1.169/\sqrt{1+0.588^2*5.03}=0.706$, which is close to the marginal estimate of 0.683. 
+
+These magnitudes depend on the variance of $\gamma_{0k}$. As this variance increases, we can see that the discrepancy between the two coefficients will change. 
+
+Overall, two different models were fit to test the association between auranofin and placebo among 294 patients with rheumatoid arthritis. Both models found there is a significant difference between auranofin and placebo over time (p=0.02), with auranofin leading to better self-assessments of arthritis. 
+
+\newpage
+# Problem 2
+Recall the binary mixed model $Y_{ki}|X_{ki},\gamma_k \sim \text{Bernoulli}(\mu(X_{ki}, \gamma_k))$, where
+
+$$
+\mu(X_{ki}, \gamma_k) = H(\beta^TX_{ki}+\gamma_k)
+$$
+for some inverse-link function $H$, and $\gamma_k$ is the random effect. We're familiar with
+
+$$
+H_1(x) = expit(x) \quad \text{(inverse logit)} \qquad \text{and} \qquad H_2(x) = \Phi(x) \quad \text{(inverse probit)}
+$$
+
+For this problem, we will consider $H_3(x)=\frac{1}{\pi}tan^{-1}(x)+\frac{1}{2}$
+
+## Part 2a
+Plot $H_1(x), H_2(x), H_3(x)$ for $x \in [-4,4]$. Based on these plots, what can you gauge about how $H_3$ will affect $\beta$ compared to $H_1$ or $H_2$?
+
+```{r}
+tanFunc <- function(x){
+  (1/pi)*atan(x)+0.5
+}
+
+# Generate Y and x
+x <- seq(-4,4,0.01)
+h1.y <- plogis(x)
+h2.y <- pnorm(x)
+h3.y <- tanFunc(x)
+
+# Plot
+h1.y <- cbind(y=h1.y, type=1, x)
+h2.y <- cbind(y=h2.y, type=2, x)
+h3.y <- cbind(y=h3.y, type=3, x)
+all.y <- as.data.frame(rbind(h1.y,h2.y,h3.y))
+all.y$type <- as.factor(all.y$type)
+
+plot.2a<-ggplot(all.y, aes(x=x, y=y, colour=type)) + geom_line()
+plot(plot.2a)
+```
+
+One difference is that H3 covers a narrower range compared to H1 and H2 in this X interval. From the figure, most of the differences across these link functions manifest primarily in the tails when the probability of response is small or large. In the center, H3 seems to be a mix of H1 and H2, lying in between the two plots. Therefore, over a small range of X values, the fitted values will be approximately equal implying that the beta coefficients will be very similar as well. However, as we increase the range of X and go into the tails, these beta coefficients will start to differ much more. For smaller values of $\eta$, $\beta$ is larger while for larger values of $\eta$, $\beta$ is smaller. 
+
+\newpage
+## Part 2b
+Numerically solve the optimization problem
+
+$$
+\underset{a \in R}{\text{min}} \;\underset{x\in[-10,10]}{\text{max}} |H_2(x)-H_1(a^{-1}x)|
+$$
+
+```{r, cache=TRUE}
+# Method 1 - plugging in a large range of x
+max.func <- function(a){
+  x<-seq(-10, 10, 0.0001)
+  max(abs(pnorm(x)-plogis(x/a)))
+}
+
+a<-optim(1, max.func, control=list(warn.1d.NelderMead=FALSE))$par
+print(a)
+
+scale.check <- 16*sqrt(3)/(15*pi)
+print(scale.check)
+```
+
+Solving the optimization problem gives a minimum $a$ value of 0.5879, which is very close to the scale factor c which is 0.588. 
+
+```{r}
+max.func.2 <- function(b){
+  x<-seq(-10, 10, 0.0001)
+  max(abs(pnorm(x)-tanFunc(x/b)))
+}
+
+b<-optim(1, max.func.2, control=list(warn.1d.NelderMead=FALSE))$par
+print(b)
+```
+
+Solving the optimization problem gives a minimum $b$ value of 0.5051. 
+
+```{r}
+h1.y.ii <- plogis(x/a)
+h3.y.ii <- tanFunc(x/b)
+
+# Plot
+h1.y.ii <- cbind(y=h1.y.ii, type=1, x)
+h3.y.ii <- cbind(y=h3.y.ii, type=3, x)
+all.y.ii <- as.data.frame(rbind(h1.y.ii,h2.y,h3.y.ii))
+all.y.ii$type <- as.factor(all.y.ii$type)
+
+plot.2b<-ggplot(all.y.ii, aes(x=x, y=y, colour=type)) + geom_line()
+plot(plot.2b)
+```
+
+From this plot, we can see that H1 now follows H2 very closely, which matches up with what we solved for in lab by using the probit function to approximate the logit function with the constant c. From lab 7, we found
+
+$$
+\begin{aligned}
+\Phi^{-1}(\mu_{ki}) &= \frac{X^T_{ki}\beta^*}{\sqrt{1+Z^T_{ki}GZ_{ki}}}\\
+logit(\mu^*_{ki}) &\approx\frac{1}{c}\Phi^{-1}(\mu_{ki})\\
+&\approx \frac{X^T_{ki}\beta^*}{\sqrt{1+c^2Z^T_{ki}GZ_{ki}}}\\
+&=\frac{X^T_{ki}\beta^*}{\sqrt{1+a^2\sigma^2_{\gamma}}}
+\end{aligned}
+$$
+However, H3 does not follow H2 as closely, although it is closer than the initial plot. We can see that the plot is steeper in the center and the tails do not line up as the y range is smaller, so we cannot simply multiply H3 by a constant to match up with the probit function. Changing the value of b either increases the slope in the center but makes the tails closer to H2, or decreases the slope in the center but makes the tails further away from H2. Therefore, the second approximation does not work as well as the first.
+
+\newpage
+## Part 2c
+Let $\gamma_k \sim \text{Cauchy}(0,s_{\gamma})$ for $s_\gamma > 0$, which has density $p(u)=\frac{1}{\pi s_\gamma[1+(u/s_\gamma)^2]}$. Show that 
+
+$$
+E[H_3(\beta^TX_{ki}+\gamma_k)|X_{ki}]=H_3(\alpha\beta^TX_{ki})
+$$
+
+and find $\alpha$.
+
+Consider the latent variable $U_{ki} \sim \text{Cauchy}(0,1)$ independent of $\gamma_k$, and define $Y_{ki}=1 \Leftrightarrow U_{ki} < X_{ki}^T\beta + \gamma_k$.
+
+$$
+\begin{aligned}
+\mu_{ki} = E[Y_{ki}]=P(Y_{ki}=1)&=P(U_{ki} < \beta^TX_{ki}+\gamma_k) \\
+&=P(U_{ki} - \gamma_k < \beta^TX_{ki})
+\end{aligned}
+$$
+
+where $U_{ki} - \gamma_k \sim \text{Cauchy}(0,1+s_\gamma)$ since the two variables are independent. Standardizing this, we get $\frac{U_{ki}-\gamma_k}{1+s_\gamma} \sim \text{Cauchy}(0,1)$ since $1+s_\gamma$ is always positive. Going back to the probability equation above, we get
+
+$$
+P(\frac{U_{ki} - \gamma_k}{1+s_\gamma} < \frac{\beta^TX_{ki}}{1+s_\gamma})
+$$
+
+However, since H3 is the Cauchy$(x_0, \gamma)$ CDF when $x_0=0, \gamma=1$, we get 
+
+$$
+H_3(\frac{\beta^TX_{ki}}{1+s_\gamma})
+$$
+
+where $\alpha=\frac{1}{1+s_\gamma}$.
+
+
+
+
+
+
+
+
+
+
+

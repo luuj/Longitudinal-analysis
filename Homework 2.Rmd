@@ -1,0 +1,329 @@
+---
+title: "BST245 Homework 2"
+author: "Jonathan Luu"
+output: pdf_document
+header-includes:
+- |
+  ```{=latex}
+  \usepackage{booktabs}
+  \usepackage{float}
+  ```
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 12, fig.height = 8, comment=NA)
+library(ggplot2)
+library(nlme)
+
+# Read in data
+#schizo<-read.table("C:\\Users\\Jonathan\\Dropbox\\School\\Harvard\\BST245\\Homework 2\\schizo.dat")
+schizo<-read.table("/Users/jonathanluu/Dropbox/School/Harvard/BST245/Homework 2/schizo.dat")
+colnames(schizo)<-c("id", "imps79", "week", "trt", "sex")
+```
+
+# Problem 1 (Applied)
+The data for this problem are from a study investigating treatment-related changes in symptomatology severity in a sample of schizophrenic patients. Subjects were assigned to one of four treatments: placebo, chlorpromazine, uphenazine, and thioridazine; however, for this problem the three non-placebo drug groups have been combined into one group. Severity of schizophrenic symptomatology was assessed across time using the Inpatient Multidimensional Psychiatric Scale(IMPS) Item 79, "Severity of Illness", which was coded as: 1 = normal, not at all ill, 2 = borderline mentally ill, 3 = mildly ill, 4 = moderately ill, 5 = markedly ill, 6 = severely ill, or 7 = among the most extremely ill. Patients were sometimes classified by two psychiatric raters (in terms of the severity as measured by this scale) and when these raters differed an average of the two scores was used for that patient at that timepoint. The file schizo.dat contains some of the data from this study. Specifically, in this file you'll find 1603 records from 437 patients with five fields of data:
+
+field 1: Patient ID  
+field 2: IMPS79 (7-point measure of severity of illness)  
+field 3: Week - from 0 (baseline) to week 6 (most measurements were on weeks 0, 1, 3, 6)  
+field 4: treatment group (0 = placebo 1 = drug)  
+field 5: sex (0 = female 1 = male) ignore this variable  
+
+## Part 1a
+Obtain the IMPS79 means, std deviations and sample sizes across the 7 time points for each of the two treatment groups. Comment on the values you see and what they might suggest for modeling of these data (ideas about the form of time-related trends might help here).
+
+```{r}
+s.plot <- schizo
+s.plot[3:5]<-lapply(s.plot[3:5], as.factor) # Convert variables to factors
+
+# Get means, sd, and sample sizes across time points and treatment
+imps79.mean<-aggregate(s.plot$imps79, list(s.plot$week, s.plot$trt), mean)
+imps79.sd<-aggregate(s.plot$imps79, list(s.plot$week, s.plot$trt), sd)
+imps79.ss<-aggregate(s.plot$imps79, list(s.plot$week, s.plot$trt), length)
+```
+
+\begin{center} Table 1. Descriptive statistics for IMPS79 \end{center}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcccccccccccccc@{}}
+\toprule
+            & \multicolumn{7}{c}{Placebo}                                         & \multicolumn{7}{c}{Drug}                       \\ \midrule
+Week        & 0    & 1    & 2    & 3    & 4    & 5    & \multicolumn{1}{c|}{6}    & 0    & 1    & 2    & 3    & 4    & 5    & 6    \\ \midrule
+Mean        & 5.35 & 4.99 & 5.80 & 4.74 & 5.50 & 4.25 & \multicolumn{1}{c|}{4.25} & 5.37 & 4.43 & 3.28 & 3.80 & 2.53 & 2.92 & 3.06 \\
+SD          & 0.83 & 1.15 & 0.57 & 1.15 & 0.71 & 2.47 & \multicolumn{1}{c|}{1.48} & 0.88 & 1.22 & 1.64 & 1.45 & 1.32 & 1.57 & 1.39 \\
+Sample Size & 107  & 105  & 5    & 87   & 2    & 2    & \multicolumn{1}{c|}{70}   & 327  & 321  & 9    & 287  & 9    & 7    & 265  \\ \bottomrule
+\end{tabular}
+\end{table}
+
+```{r, echo=FALSE}
+e <- ggplot(s.plot, aes(x = week, y = imps79))
+e + geom_boxplot() + xlab("Week") + ylab("IMPS79") + ggtitle("Overall IMPS79 Mean Box Plots")
+e + geom_boxplot() + xlab("Week") + ylab("IMPS79") + ggtitle("IMPS79 Mean Box Plots by Treatment") + facet_wrap(~trt)
+```
+
+\newpage
+When looking at the overall IMPS79 means, they seem to be trending downwards as time goes on. When stratified by treatment, the means seem to oscillate up and down a bit more, but the overall trend for both treatment arms is still going down as time passes. For the drug arm, the decrease in IMPS79 mean from baseline looks larger compared to the placebo arm. Most patients are checked on weeks 0, 1, 3, and 6, but there are many more patients on the drug arm. There seems to be a quadratic trend when looking at the stratified box plots, so a potential route would be to look at a quadratic trend of time with respect to IMPS79. 
+
+## Part 1b
+For this question ignore treatment group and just fit random-effects model(s) for the trend in IMPS79 scores across time. Using IMPS79 as your dependent variable, examine whether there exists no trend, a linear trend, or a quadratic trend across time. Then test if there exists significant individual-level variation (i.e. random effects) in the intercept, linear, and quadratic trend terms (the hierarchy of testing follows the same paradigm that lower-order terms should be included before higher-order terms). Do not assume that the random effects are independent of each other, but you may assume any residual measurement error is independent among themselves and to the random effects. Write down both the within-subjects and between-subjects components for your final model. Describe the meaning of the various model parameters and your conclusions regarding their statistical significance.
+
+```{r, cache=TRUE}
+# Testing fixed effects for inclusion
+m1<-glm(imps79 ~ 1, data=schizo, family=gaussian)
+m2<-glm(imps79 ~ week, data=schizo, family=gaussian)
+m3<-glm(imps79 ~ week + I(week^2), data=schizo, family=gaussian)
+
+summary(m2)
+summary(m3)
+```
+
+```{r, cache=TRUE}
+# Mixture test
+testMixtureChi2 <- function(df1, df2, chi2Stat){
+  # Generate mixture
+  n=1000000
+  n.chisq.mix.1<-rchisq(n/2,df1)
+  n.chisq.mix.2<-rchisq(n/2,df2)
+  n.chisq.mix<-rbind(n.chisq.mix.1, n.chisq.mix.2)
+  
+  # See proportion as or more extreme than statistic
+  sum(n.chisq.mix>=chi2Stat)/n
+}
+
+# Test intercept trend term
+r0 <- glm(imps79 ~ week + I(week^2), data=schizo, family=gaussian)
+r1 <- lme(fixed=imps79 ~ week + I(week^2), random=reStruct(~ 1 | id),
+          data=schizo, method="ML")
+intercept.rt<- -2*(logLik(r0)[1]-logLik(r1)[1])
+intercept.chi2 <- testMixtureChi2(1,1,intercept.rt)
+
+# Test linear trend term
+r2 <- lme(fixed=imps79 ~ week + I(week^2), random=reStruct(~ week | id),
+          data=schizo, method="ML")
+linear.rt <- -2*(logLik(r1)[1]-logLik(r2)[1])
+linear.chi2 <- testMixtureChi2(2,1,linear.rt)
+
+# Test quadratic term
+r3 <- lme(fixed=imps79 ~ week + I(week^2), random=reStruct(~ week + I(week^2) | id),
+          data=schizo, method="ML")
+quad.rt <- -2*(logLik(r2)[1]-logLik(r3)[1])
+quad.chi2 <- testMixtureChi2(3,2,quad.rt)
+
+# Final model
+summary(r3)
+
+# Variance test statistics
+c(intercept.rt, linear.rt, quad.rt)
+```
+
+There seems to be strong evidence that there is a quadratic trend in time with respect to IMPS79 scores, as the Wald test given by GLM indicates that the quadratic term is highly significant (p<0.001). Therefore, I will be including the quadratic (and therefore the linear) week terms in my model.
+
+Given these fixed effects, I wanted to test if any of the random effects would be significant. Starting with just a random intercepts model given these fixed effects, I compared this model to the naive model  using a LRT with df=1. This test was highly significant (p<0.0001), so I proceeded to test the linear term, week. Comparing this random intercepts/slopes model with week against the random intercepts model using a LRT with a mixed $\chi^2$ distribution $\frac{1}{2}\chi_2^2 + \frac{1}{2}\chi_1^2$, I also found this linear term was significant (p<0.0001). Lastly, I added the quadratic term $week^2$ as a random slope and used a LRT with a mixed $\chi^2$ distribution $\frac{1}{2}\chi_3^2 + \frac{1}{2}\chi_2^2$ and found this quadratic term highly significant (p<0.0001). Therefore for the final model, I chose to include the quadratic time trend with a quadratic time random effect, with all lower order terms included as well. 
+
+Between subject components: $\beta_0 + \beta_1Week_{ki} + \beta_2Week^2_{ki}$
+
+Within subject components: $\gamma_{k0} + \gamma_{k1}Week_{ki} + \gamma_{k2}Week^2_{ki} + \epsilon_{ki}$
+
+$\beta_0, \beta_1, \beta_2$ represent the baseline, linear trend, and quadratic trend for the fixed effects, which stays the same for all clusters. $\gamma_{0k}, \gamma_{1k}, \gamma_{2k}$ represent the intercept, linear, and quadratic trend terms for the random effects, which stays the same for individuals within a cluster but differ between clusters. The fixed effects indicate that there is a strong quadratic relationship between time and IMPS79 score that is shared between all clusters. There is a significant mean increase of 0.043 in IMPS79 score per unit increase in $week^2$, after accounting for the linear term in the model. There is a significant mean decrease of -0.584 in IMPS79 score per unit increase in week, after accounting for the quadratic term. The random effects allow for perturbations individual to each cluster that allow them to differ from the fixed relationship due to unobserved heterogeneity.
+
+## Part 1c
+Now, investigate whether there is evidence for differential trend due to treatment group. Perform an analysis including the main effect of treatment and any treatment by time interactions that you see fit. Describe the significance of these additional model parameters and what they may suggest about controlling schizophrenia through medication. Write down both the within-subjects and between-subjects components for your final model. Describe the meaning of the various model parameters. Obtain the means across time for the two treatment groups and compare these with the estimated means derived from your final model. How well does this model fit the observed means? Plot the observed means and estimated
+means for both groups against time at weeks 0, 1, 3, & 6.
+
+```{r, cache=TRUE}
+# Model with no interaction terms
+c1 <- lme(fixed=imps79 ~ week + I(week^2) + trt, random=reStruct(~ week + I(week^2) | id),
+          data=schizo, method="ML")
+# Model with interaction between trt and week
+c2 <- lme(fixed=imps79 ~ I(week^2) + trt*week, random=reStruct(~ week + I(week^2) | id),
+          data=schizo, method="ML")
+# Model with interaction between trt and week^2
+c3 <- lme(fixed=imps79 ~ trt*I(week^2) + week, random=reStruct(~ week + I(week^2) | id),
+          data=schizo, method="ML")
+# Model with interactions between both trt*week^2 and trt*week
+c4 <- lme(fixed=imps79 ~ trt*I(week^2) + trt*week, random=reStruct(~ week + I(week^2) | id),
+          data=schizo, method="ML")
+# Final model
+summary(c4)
+```
+
+```{r}
+# Fitted means
+fitted.data <- cbind(schizo, fitted(c4))
+imps79.fitted.mean<-aggregate(fitted.data$`fitted(c4)`, 
+                              list(fitted.data$week, fitted.data$trt), mean)
+imps79.fitted.mean <- cbind(imps79.fitted.mean, type=as.factor("Fitted"))
+imps79.mean <- cbind (imps79.mean, type=as.factor("Observed"))
+
+# Combine observed and fitted means for plotting
+new.plot <- rbind(imps79.fitted.mean, imps79.mean)
+colnames(new.plot) <- c("Week", "Treatment", "IMPS79.Mean", "Type")
+
+# Remove weeks 2,4, and 5
+new.plot<-new.plot[new.plot$Week %in% c(0,1,3,6), ]
+
+# Plot
+p <- ggplot(new.plot, aes(x = Week, y = IMPS79.Mean, colour=Type, shape=Treatment, 
+                          group=interaction(Treatment, Type))) + geom_point() + geom_line()
+plot(p)
+```
+
+Since we are specifically interested in this treatment vs. placebo, I will only be adding it to the fixed effects portion of the model. First, I only added the treatment variable to the model established in part 1b. I found this to be highly significant (p<0.001), so I tested models with different combinations of interaction terms between week^trt and $week^2$^trt. I found that both interaction terms were significant, so the final model's components are listed below:
+
+Between subject components: $\beta_0 + \beta_1Week_{ki} + \beta_2Week^2_{ki} + \beta_3Trt_{ki} + \beta_4Trt_{ki}*Week_{ki} + \beta_5Trt_{ki}*Week^2_{ki}$
+
+Within subject components: $\gamma_{k0} + \gamma_{k1}Week_{ki} + \gamma_{k2}Week^2_{ki} + \epsilon_{ki}$
+
+The significance of these new model parameters, trt and its interaction terms, is that there is a significant quadratic trend in time with respect to IMPS79 score, but this trend differs by treatment group. Looking at the linear interaction term, trt*week, there is a significant decrease of IMPS79 score when on the treatment compared to placebo over time (p<0.001). There is a slight increase of IMPS79 score for those on the treatment compared to placebo over time, after accounting for the linear term (p=0.002). The main effects in the model, other than week, are no longer significant after including these interaction effects in the model. However, these main effects only represent the effect when the other variable is equal to 0 (e.g. week=0 or trt=0), so focus should be placed on the interaction effects.
+
+The meaning of the various parameters are equivalent to 1b, with the addition of the treatment and interaction terms described in the previous paragraph. 
+
+Lastly, after plotting the observed means against the estimated means, it seems the model does a good job at estimating as the estimated lines for both treatments are very close to their observed lines. 
+
+\newpage
+# Problem 2 (Theoretical)
+
+## Part 2a
+Show that $R_1$ is positive semidefinite if and only if $|\rho| \le (2cos\frac{\pi}{n+1})^{-1}$.
+
+I will prove this by showing that the eigenvalues of $A \ge 0$.
+
+Consider the 4x4 case without loss of generality:
+
+$$
+A = \left[ \begin{array}
+{rrrr}
+1 & \rho & 0 & 0\\
+\rho & 1 & \rho & 0\\
+0 & \rho & 1 & \rho\\
+0 & 0 & \rho & 1
+\end{array} \right]
+$$
+
+Consider characteristic polynomial of A: $A-\lambda I$
+
+$$
+A - \lambda I = \left[ \begin{array}
+{rrrr}
+1- \lambda & \rho & 0 & 0\\
+\rho & 1- \lambda & \rho & 0\\
+0 & \rho & 1- \lambda & \rho\\
+0 & 0 & \rho & 1- \lambda
+\end{array} \right]
+$$
+
+Expanding upon the $det(A-\lambda I)$ using the last row for the 4x4 matrix and then the last column for the 3x3 matrix, we get:
+
+$$
+\begin{aligned}
+det(A-\lambda I) &= -0 + 0 - \rho 
+\left[ \begin{array}
+{rrr}
+1- \lambda & \rho  & 0\\
+\rho & 1- \lambda  & 0\\
+0 & \rho  & \rho\\
+\end{array} \right] + (1-\lambda)det(A_{n-1} - \lambda)\\
+&=(1-\lambda)det(A_{n-1} - \lambda) - \rho^2det(A_{n-2}-\lambda)
+\end{aligned}
+$$
+
+This is a recurrence relation. Comparing it against Chebyshev's polynomials of the second kind, we need to obtain a determinant matrix with the form (Source: WolframAlpha):
+
+$$
+U_n(x) = \left| \begin{array}
+{rrrr}
+2x & 1 & 0 & 0\\
+1 & 2x & 1 & 0\\
+0 & 1 & 2x & 1\\
+0 & 0 & 1 & 2x
+\end{array} \right|
+$$
+
+Going back to our determinant characteristic polynomial matrix, we can factor out a $\rho$ from each row and get:
+
+$$
+\begin{aligned}
+det(A-\lambda I) &= \rho^n
+\left| \begin{array}
+{rrrr}
+\frac{1-\lambda}{\rho} & 1  & 0 & 0\\
+1 & \frac{1-\lambda}{\rho}  & 1 & 0\\
+0 & 1  & \frac{1-\lambda}{\rho} & 1\\
+0 & 0 & 1 & \frac{1-\lambda}{\rho}
+\end{array} \right| \\
+&=\rho^n U_n\left(\frac{1-\lambda}{2\rho}\right)
+\end{aligned}
+$$
+since $2x=\frac{1-\lambda}{\rho} \Rightarrow x=\frac{1-\lambda}{2\rho}$. Also, since the roots of $U_n(\lambda)$ are $cos(\frac{k\pi}{n+1})$ for $k=1,...n$ (Source: Chebyshev polynomials Wikipedia), the eigenvalues of A are:
+
+$$
+\begin{aligned}
+U_n\left(\frac{1-\lambda}{2\rho}\right)&= -U_n\left(\frac{\lambda - 1}{2\rho} \right)\\
+&=-U_n(\lambda)2\rho+1\\
+&=-2\rho cos\left(\frac{k\pi}{n+1}\right) + 1
+\end{aligned}
+$$
+
+Since we need these eigenvalues to be $\ge 0$:
+
+$$
+\begin{aligned}
+-2\rho cos\left(\frac{k\pi}{n+1}\right) + 1 &\ge 0\\
+-2\rho cos\left(\frac{k\pi}{n+1}\right) &\ge -1 \\
+\rho &\le \left(2 cos\left(\frac{k\pi}{n+1}\right) \right)^{-1}
+\end{aligned}
+$$
+
+for $k=1,...n$. Since we are interested in the smallest value for this inequality, this occurs when k=1. Furthermore, since n is always > 0, the RHS function is always greater than 0. Therefore, the final result is:
+
+$$
+|\rho| \le \left(2 cos\left(\frac{\pi}{n+1}\right) \right)^{-1}
+$$
+
+## Part 2b
+For even $n \ge 4$, derive and prove necessary and sufficient conditions on $\rho$ for $R_2$ to be positive semi-definite.
+
+I will prove this by showing $x^TR_2x \ge 0$ for $\forall x \in R^n$.
+
+$$
+\begin{aligned}
+x^TR_2x &= \sum_{i=1}^n \sum_{j=1}^nr_{ij}x_i x_j\\
+&= \sum_{i=1}^nx_i^2 + 2\sum_{i=1}^n\sum_{j<i}r_{ij}x_i x_j\\
+&= \sum_{i=1}^nx_i^2 + 2\rho(\sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n) \ge 0 \\
+&= \sum_{i=1}^nx_i^2 \ge -2\rho(\sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n) \quad \mbox{(1)}
+\end{aligned}
+$$
+
+If we let $a=x_i$ and $b=x_{i=1}$, using the inequality $a^2 + b^2 \ge 2ab$ we can see that for each term within the parenthesis above $\sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n$:
+
+$$
+\begin{aligned}
+x_1^2 + x_2^2 &\ge 2x_1x_2\\
+&\vdots\\
+x_{n-1}^2 + x_n^2 &\ge 2x_{n-1}x_n\\
+x_n^2 + x_1^2 &\ge 2x_1x_n 
+\end{aligned}
+$$
+Summing up all these inequalities, we get
+
+$$
+\begin{aligned}
+2\sum_{i=1}^nx_i^2 &\ge 2(\sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n)\\
+=\sum_{i=1}^nx_i^2 &\ge \sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n \quad \mbox{(2)}
+\end{aligned}
+$$
+
+Comparing this inequality against (1), this shows that the sufficient condition for $R_2$ to be positive semi-definite is $|\rho| \le \frac{1}{2}$. To show that this is a necessary condition, we can show that the constant in front of $\sum_{i=1}^{n-1}x_ix_{i+1} + x_1x_n$ cannot be improved. 
+
+Equality can be attained when $x = (x_1, -x_1, x_1... -x_1)$ (alternating positive/negative values of the same value of x), $|\rho| = \frac{1}{2}$, and n is even. By having this alternating sequence, the negative in front of the sum disappears. Furthermore, this equality holds when $|\rho| < \frac{1}{2}$ since $\rho * 2 < 1, \forall |\rho| \in(0,\frac{1}{2})$. However, this inequality is violated when $|\rho| > \frac{1}{2}$, since $\rho*2 > 1, \forall |\rho|\in(\frac{1}{2},1)$. Therefore, $|\rho| \le \frac{1}{2}$ is both a necessary and sufficient condition for $R_2$ to be positive semi-definite.
+
+
+
+
+
+
+
+
+
+

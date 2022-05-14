@@ -1,0 +1,393 @@
+---
+title: "BST245 HW4"
+author: "Jonathan Luu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+library(doParallel)
+registerDoParallel(detectCores())
+set.seed(1)
+```
+
+# Problem 1
+
+```{r}
+# Simulation Parameters
+N_sim <- 3000
+K <- 200
+nk <- 10
+beta <- matrix(c(100,-5))
+G <- matrix(c(100,0,0,2), ncol=2)
+X <- matrix(c(rep(1,10), 1:10), ncol=2)
+  
+# Generate the data
+genData <- function(){
+  generatePerson <- function(){
+    gammak <- matrix(c(rnorm(1,sd=sqrt(G[1])), rnorm(1,sd=sqrt(G[4]))))
+    X%*%(beta+gammak) + rnorm(nk)
+  }
+
+  Y <- unlist(replicate(K, generatePerson(), simplify = FALSE))
+
+  myData <- data.frame(Y,X, rep(1:200, each=10))
+  colnames(myData) <- c("Y","X0","X1", "ID")
+  myData
+}
+
+myData <- genData()
+```
+
+\newpage
+## Part 1a
+
+```{r}
+# Different weight choices
+OLS.weight <- function(Sk, X){
+  diag(Sk)
+}
+
+WLS.weight <- function(Sk, X){
+  solve(diag(Sk) + G[1,1])
+}
+
+W2.weight <- function(Sk, X){
+  solve(diag(Sk) + X%*%G%*%t(X))
+}
+
+# Randomly delete 20% of observations
+myData.1a <- myData[-sample(2000, size=400),]
+splitData.1a <- split(myData.1a, myData.1a$ID)
+
+# Function to calculate beta_hat
+calcEstimator <- function(weight, data){
+  total1 <- total2 <- B <- 0
+
+  for (i in 1:K){
+    subj <- data[[i]]
+
+    X <- as.matrix(subj[,2:3])
+    Y <- as.matrix(subj[,1])
+    W <- weight(nrow(subj), X)
+  
+    total1 <- total1 + t(X)%*%W%*%X
+    total2 <- total2 + t(X)%*%W%*%Y
+    B <- B + t(X)%*%W%*%(diag(nrow(subj)) + X%*%G%*%t(X))%*%t(W)%*%X
+  }
+  
+  list(beta=solve(total1)%*%total2, se=sqrt(diag(solve(total1)%*%B%*%solve(total1))))
+}
+
+# Run function given a weight choice
+calcEstimator(OLS.weight, data=splitData.1a)
+calcEstimator(WLS.weight, data=splitData.1a)
+calcEstimator(W2.weight, data=splitData.1a)
+```
+
+This type of missingness would be considered MCAR. The OLS estimator gives estimates of 98.8 and -4.84 which are relatively unbiased to the real beta values of 100 and -5. However, the WLS and W2 estimators are even closer to the real beta values compared to the OLS estimator. Regarding standard errors, the OLS estimator has the largest standard errors and is relatively less efficient than the other two. The WLS has the next smallest standard errors, and the W2 has the smallest standard errors making it the most efficient of the three. Since the data is MCAR, the estimators are consistent estimators.
+
+```{r, cache=TRUE}
+ltResults <- foreach(i=1:N_sim) %dopar% {
+  biasCheck <- genData()
+  
+  # Randomly delete 20% of observations
+  biasCheck.1a <- biasCheck[-sample(2000, size=400),]
+  biasCheck.1a <- split(biasCheck.1a, biasCheck.1a$ID)
+  
+  OLS <- calcEstimator(OLS.weight, data=biasCheck.1a)
+  WLS <- calcEstimator(WLS.weight, data=biasCheck.1a)
+  W2 <- calcEstimator(W2.weight, data=biasCheck.1a)
+  
+  c(OLS.B=OLS[[1]], OLS.SE=OLS[[2]],
+    WLS.B=WLS[[1]], WLS.SE=WLS[[2]],
+    W2.B=W2[[1]], W2.SE=W2[[2]])
+}
+
+ltResults <- do.call(rbind, ltResults)
+apply(ltResults[,c(1:2,5:6,9:10)], 2, mean) # Mean of the beta estimates
+apply(ltResults[,c(1:2,5:6,9:10)], 2, sd) # SD of the beta estimates
+```
+
+By simulating the creation of a dataset 3000 times and taking the average of the betas obtained, we get average estimates that are extremely close to the real beta values indicating that all three methods are unbiased. 
+
+\newpage
+## Part 1b
+
+```{r}
+# Remove observations with Y < 65
+splitData.1b <- split(myData, myData$ID)
+missData.1b <- lapply(splitData.1b, function(subj){
+  subj[c(TRUE,subj$Y[2:nk] >= 65),]
+})
+
+calcEstimator(OLS.weight, data=missData.1b)
+calcEstimator(WLS.weight, data=missData.1b)
+calcEstimator(W2.weight, data=missData.1b)
+```
+Unlike the previous missingness, this type of missingness is now monotone since all values that are lower than 65 are removed. Furthermore, since the missingness does not depends on the missing outcomes but the observed outcomes, this would be classified as MAR. The OLS estimator is now noticeably more biased compared to the other two estimators, and WLS is more biased than before. However, the W2 estimator is still relatively unbiased. The standard errors look very similar to before, with OLS being the least efficient and W2 being the most efficient. Since the data is MAR, estimators are not necessarily consistent anymore. 
+
+```{r, cache=TRUE}
+ltResults <- foreach(i=1:N_sim) %dopar% {
+  biasCheck <- genData()
+  
+  biasCheck.1b <- split(biasCheck, biasCheck$ID)
+  biasCheck.1b <- lapply(biasCheck.1b, function(subj){
+    subj[c(TRUE,subj$Y[2:nk] >= 65),]
+  })
+  
+  OLS <- calcEstimator(OLS.weight, data=biasCheck.1b)
+  WLS <- calcEstimator(WLS.weight, data=biasCheck.1b)
+  W2 <- calcEstimator(W2.weight, data=biasCheck.1b)
+  
+  c(OLS.B=OLS[[1]], OLS.SE=OLS[[2]],
+    WLS.B=WLS[[1]], WLS.SE=WLS[[2]],
+    W2.B=W2[[1]], W2.SE=W2[[2]])
+}
+
+ltResults <- do.call(rbind, ltResults)
+apply(ltResults[,c(1:2,5:6,9:10)], 2, mean) # Mean of the beta estimates
+apply(ltResults[,c(1:2,5:6,9:10)], 2, sd) # SD of the beta estimates
+```
+
+Looking at the these results after 3000 simulations, we can see that W2 remains relatively unbiased compared to OLS and WLS, which are doing much worse compared to 1a. Similar to 1a, the standard errors for W2 are the lowest again indicating that it is the most efficient.
+
+\newpage
+## Part 1c
+
+```{r}
+# Generate dropout probabilities
+splitData.1c <- split(myData, myData$ID)
+missData.1c <- lapply(splitData.1c, function(subj){
+  drop.prob <- c(0,plogis(-0.5-0.01*subj$Y[1:nk-1]))
+  drop.time <- rbinom(10, 1, drop.prob)
+  
+  # Only remove if there is a dropout time
+  if (sum(drop.time) > 0){
+    drop <- which.max(drop.time)
+    return(subj[1:drop,])
+  }
+  
+  return(subj)
+})
+
+calcEstimator(OLS.weight, data=missData.1c)
+calcEstimator(WLS.weight, data=missData.1c)
+calcEstimator(W2.weight, data=missData.1c)
+
+# Plot
+plot.1c <- do.call(rbind, missData.1c)
+meanByTime <- aggregate(plot.1c$Y, list(plot.1c$X1), mean)
+plot(plot.1c$X1, plot.1c$Y, xlab="Time", ylab="Y", 
+     main="Outcomes given time with curve indicating mean")
+lines(meanByTime$Group.1, meanByTime$x, col="blue")
+```
+The trend looks relatively smooth and gradually descends as expected, with more people missing as time goes on. This type of missingness is still monotone since people do not return after dropping out. Furthermore, it is classified as MAR since it does not depend on the missing outcomes. All three estimators are relatively unbiased compared to part b. OLS still remains the least efficient, and W2 is the most efficient. Since the data is MAR again, the estimators are not necessarily consistent. 
+
+```{r, cache=TRUE}
+ltResults <- foreach(i=1:N_sim) %dopar% {
+  biasCheck <- genData()
+  
+  biasCheck.1c <- split(biasCheck, biasCheck$ID)
+  biasCheck.1c <- lapply(biasCheck.1c, function(subj){
+    drop.prob <- c(0,plogis(-0.5-0.01*subj$Y[1:nk-1]))
+    drop.time <- rbinom(10, 1, drop.prob)
+  
+    # Only remove if there is a dropout time
+    if (sum(drop.time) > 0){
+      drop <- which.max(drop.time)
+      return(subj[1:drop,])
+    }
+    
+    return(subj)
+  })
+  
+  OLS <- calcEstimator(OLS.weight, data=biasCheck.1c)
+  WLS <- calcEstimator(WLS.weight, data=biasCheck.1c)
+  W2 <- calcEstimator(W2.weight, data=biasCheck.1c)
+  
+  c(OLS.B=OLS[[1]], OLS.SE=OLS[[2]],
+    WLS.B=WLS[[1]], WLS.SE=WLS[[2]],
+    W2.B=W2[[1]], W2.SE=W2[[2]])
+}
+
+ltResults <- do.call(rbind, ltResults)
+apply(ltResults[,c(1:2,5:6,9:10)], 2, mean) # Mean of the beta estimates
+apply(ltResults[,c(1:2,5:6,9:10)], 2, sd) # SD of the beta estimates
+```
+
+Overall, the estimates are relatively unbiased for all three weights for the intercept. However, it seems that OLS and and WLS have biased beta_2 estimates, while W2 has an unbiased beta_2 estimate. OLS is the least efficient again, and W2 is the most efficient.
+
+\newpage
+# Problem 2
+
+## Part 2a
+
+$$
+\begin{aligned}
+E[U_1(\beta,\alpha)|Y^o,X]&=E\left[\sum_{k=1}^K D_k^TV_k^{-1}(Y_k-\mu_k) | Y^o, X \right] \\
+&= \sum_{k=1}^K D_k^TV_k^{-1}E[Y_k-\mu_k | Y_k^o, X_k]\\
+&=\sum_{k=1}^K D_k^TV_k^{-1}E[Y_k| Y_k^o, X_k] - \mu_k
+\end{aligned}
+$$
+
+since $D_k^TV_k^{-1}$ only depends on X and $\beta$, and $\mu_k$ only depends on $Y_k^o$.
+
+To prove the equivalency, I will use for the inverse:
+
+
+$$
+\left[ \begin{array}
+{cc}
+A & B \\
+C & D \\
+\end{array} \right]^{-1} =
+\left[ \begin{array}
+{cc}
+A^{-1}+A^{-1}B(D-CA^{-1}B)^{-1}CA^{-1} & -A^{-1}B(D-CA^{-1}B)^{-1} \\
+-(D-CA^{-1}B)^{-1}CA^{-1} & (D-CA^{-1}B)^{-1} \\
+\end{array} \right]
+$$
+
+Let $V_k^o=A, V_k^{om}=B, V_k^{mo}=C, V_k^m=D$. Furthermore, I will use for the conditional expectation:
+
+$$
+E[Y_k^m | Y_k^O, X] = \mu_k^m +CA^{-1}(Y_k^o-\mu_k^o)
+$$
+
+Multiplying everything out, we get
+
+$$
+\begin{aligned}
+&=\sum_{k=1}^K\left[ \begin{array}
+{cc}
+D_k^o[A^{-1}+A^{-1}B(D-CA^{-1}B)^{-1}CA^{-1}] - D_k^m(D-CA^{-1}B)^{-1}CA^{-1} \\
+-D_k^o (D-CA^{-1}B)^{-1}CA^{-1} + D_k^m (D-CA^{-1}B)^{-1}
+\end{array} \right]
+\left[ \begin{array}
+{cc}
+Y_k^o - \mu_k^o \\
+\mu_k^m +CA^{-1}(Y_k^o-\mu_k^o) - \mu_k^m
+\end{array} \right]\\
+&= \sum_{k=1}^K [D_k^oA^{-1}(Y_k^o - \mu_k^o ) + D_k^oA^{-1}B(D-CA^{-1}B)^{-1}CA^{-1}](Y_k^o - \mu_k^o) - D_k^m(D-CA^{-1}B)^{-1}CA^{-1}(Y_k^o - \mu_k^o) \\
+& \qquad - D_k^oA^{-1}B(D-CA^{-1}B)^{-1}CA^{-1}](Y_k^o - \mu_k^o) + D_k^m(D-CA^{-1}B)^{-1}CA^{-1}(Y_k^o - \mu_k^o)]\\
+&= \sum_{k=1}^K (D_k^o)^T(V_k^o)^{-1}(Y_k^o - \mu_k^o )
+\end{aligned}
+$$
+
+\newpage
+## Part 2b
+
+$$
+\begin{aligned}
+E[U_2(\beta,\alpha)|Y^o,X] &= E[\sum_{k=1}^K (E_k^\dagger)^T(W_k^\dagger)^{-1}(Z_k^\dagger - \sigma_k) | Y_k^o, X_k]\\
+&=\sum_{k=1}^K (E_k^\dagger)^T(W_k^\dagger)^{-1}E(Z_k^\dagger - \sigma_k | Y_k^o, X_k)\\
+&=\sum_{k=1}^K (E_k^\dagger)^T(W_k^\dagger)^{-1}\left[E(Z_k^\dagger| Y_k^o, X_k) - \sigma_k\right]
+\end{aligned}
+$$
+
+since $(E_k^\dagger)^T(W_k^\dagger)^{-1}$ are functions of $\sigma_k, \alpha$ and $\sigma_k$ is the correlation between $Y_{ki}$'s. 
+
+Let $V_k^o=A, V_k^{om}=B, V_k^{mo}=C, V_k^m=D$. Since $Z_k$ is a function of a pair of $Y_{ki}$'s, we need to consider three different combinations of observed and missing:
+
+When both Y's are observed:
+
+$$
+\begin{aligned}
+E[(Y_{ki}^o-\mu_{ki}^o)(Y_{kj}^o-\mu_{kj}^o) |Y_{k}^o,X_{k}]&=(Y_{ki}^o-\mu_{ki}^o)(Y_{kj}^o-\mu_{kj}^o)
+\end{aligned}
+$$
+
+When both Y's are missing:
+
+$$
+\begin{aligned}
+E[(Y_{ki}^m-\mu_{ki}^m)(Y_{kj}^m-\mu_{kj}^m) |Y_{k}^o,X_{k}]=Cov(Y_{ki}^m,Y_{kj}^m)&=D-CA^{-1}B\\
+\end{aligned}
+$$
+
+When one Y is observed and one Y is missing:
+
+$$
+\begin{aligned}
+E[(Y_{ki}^o-\mu_{ki}^o)(Y_{kj}^m-\mu_{kj}^m) |Y_{k}^o,X_{k}] = (Y_{ki}^o-\mu_{ki}^o)E[(Y_{kj}^m-\mu_{kj}^m) |Y_{k}^o,X_{k}] &= (Y_{ki}^o-\mu_{ki}^o)\left[\mu_{kj}^m + CA^{-1} (Y_{kj}^o-\mu_{kj}^o) - \mu_{kj}^m\right]\\
+&=(Y_{ki}^o-\mu_{ki}^o)\left[V_{kji}^{mo}(V_{kji}^o)^{-1}(Y_{kj}^o-\mu_{kj}^o) \right]\\
+\end{aligned}
+$$
+
+This gives: 
+
+$$
+E(Z_k^\dagger| Y_k^o, X_k) = \left[ \begin{array}
+{ccc}
+(Y_k^o-\mu_k^o)(Y_k^o-\mu_k^o)^T \\
+(Y_k^o - \mu_k^o)V_k^{mo}(V_k^o)^{-1}(Y_k^o-\mu_k^o)^T\\
+V_{k}^m-V_k^{mo}(V_k^o)^{-1}V_k^{om}
+\end{array} \right]\\
+$$
+
+
+\newpage
+## Part 2c
+
+Using the definition of covariance and correlation, we get
+
+$$
+\begin{aligned}
+Cov(Y_{ki}, Y_{kj}|X_{ki}X_{kj}) &= E[Y_{ki}Y_{kj}|X_{ki}X_{kj}] - E[Y_{ki}|X_{ki}]E[Y_{kj}|X_{kj}]\\
+&=\mu_{kij} - \mu_{ki}\mu_{kj}\\
+Corr(Y_{ki}, Y_{kj}|X_{ki}X_{kj}) &= \frac{Cov(Y_{ki}, Y_{kj}|X_{ki}X_{kj})}{\sqrt{Var(Y_{ki}|X_{ki})} \sqrt{Var(Y_{kj}|X_{kj})}}\\
+&=\frac{\mu_{kij} - \mu_{ki}\mu_{kj}}{\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}}\\
+\mu_{kij}&= \mu_{ki}\mu_{kj} + tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}
+\end{aligned}
+$$
+
+Furthermore, since $Y_{ki}$ and $Y_{kj}$ can only take on 4 different combinations of values, we have the following table:
+
+
+|        | $Y_{kj}=1$ | $Y_{kj}=0$ |
+|--------|--------|--------|
+| $Y_{ki}=1$ |  $\mu_{kij}$      |    $\mu_{ki}-\mu_{kij}$    |
+| $Y_{ki}=0$|  $\mu_{kj}-\mu_{kij}$      |  $1-\mu_{ki}-\mu_{kj}+\mu_{kij}$      |
+
+If $Y_{ki}=0$, the probability of $Y_{kj}=1$ is $\frac{\mu_{kj}-\mu_{kij}}{\mu_{kj}-\mu_{kij} + 1-\mu_{ki}-\mu_{kj}+\mu_{kij}}=\frac{\mu_{kj}-\mu_{kij}}{1-\mu_{ki}}$.
+
+If $Y_{ki}=1$, the probability of $Y_{kj}=1$ is $\frac{\mu_{kij}}{\mu_{kij} +\mu_{ki}-\mu_{kij}}=\frac{\mu_{kij}}{\mu_{ki}}$.
+
+Using these conditional probabilities, we get 
+
+$$
+\begin{aligned}
+\eta_{kij}&=E[Y_{kj}|Y_{ki},X_k]=Y_{ki}\left(\frac{\mu_{kij}}{\mu_{ki}} \right) + (1-Y_{ki})\left(\frac{\mu_{kj}-\mu_{kij}}{1-\mu_{ki}} \right)\\
+&=Y_{ki}\left(\frac{\mu_{ki}\mu_{kj} + tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}}{\mu_{ki}} \right) + \\ & \qquad (1-Y_{ki})\left(\frac{\mu_{kj}-\mu_{ki}\mu_{kj} - tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}}{1-\mu_{ki}} \right)\\
+&=\frac{Y_{ki}tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}}{\mu_{ki}(1-\mu_{ki})} + \frac{\mu_{kj}-\mu_{ki}\mu_{kj} - tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})}}{1-\mu_{ki}} \\
+&=\frac{(Y_{ki}-\mu_{ki})tanh(\alpha^TZ_k)\sqrt{\mu_{ki}(1-\mu_{ki})\mu_{kj}(1-\mu_{kj})} + \mu_{ki}\mu_{kj}-\mu_{ki}^2\mu_{kj}}{\mu_{ki}(1-\mu_{ki})} \\
+&=\frac{(Y_{ki}-\mu_{ki})tanh(\alpha^TZ_k)\sqrt{\mu_{kj}(1-\mu_{kj})} }{\sqrt{\mu_{ki}(1-\mu_{ki})}} + \mu_{kj}
+\end{aligned}
+$$
+Taking the derivative of $\eta_{kij}$ w.r.t $\alpha$, we get $E_k^{\diamond}$:
+
+$$
+\begin{aligned}
+E_k^{\diamond} &= \frac{\partial}{\partial \alpha}\frac{(Y_{ki}-\mu_{ki})tanh(\alpha^TZ_k)\sqrt{\mu_{kj}(1-\mu_{kj})} }{\sqrt{\mu_{ki}(1-\mu_{ki})}}\\
+&=\frac{(Y_{ki}-\mu_{ki})\sqrt{\mu_{kj}(1-\mu_{kj})} Z_k[1-tanh^2(\alpha^TZ_k)]}{\sqrt{\mu_{ki}(1-\mu_{ki})}}
+\end{aligned}
+$$
+
+Lastly, to show $E[U_2^\diamond(\beta,\alpha)]=0$, we use Adam's law to condition on $Y_{ki}$:
+
+$$
+\begin{aligned}
+E[U_2^\diamond(\beta,\alpha)] &= E\left[\sum_{k=1}^K(E_k^{\diamond})^T(W_k^\diamond)^{-1}(Z_k^\diamond-\eta_k)\right]\\
+&= E\left[ E \left[\sum_{k=1}^K(E_k^{\diamond})^T(W_k^\diamond)^{-1}(Z_k^\diamond-\eta_k) | Y_{ki} \right] \right]\\
+&=E\left[\sum_{k=1}^K(E_k^{\diamond})^T(W_k^\diamond)^{-1} E \left[(Z_k^\diamond-\eta_k) | Y_{ki} \right] \right]\\
+&=E\left[\sum_{k=1}^K(E_k^{\diamond})^T(W_k^\diamond)^{-1} 0 \right]\\
+&= 0
+\end{aligned}
+$$
+
+Since $\eta_{kij}=E(Y_{kj}|Y_{ki},X_k)$ and $Z_{kij}^\diamond=Y_{kj}$, we get that the inner expectation in step three is equal to 0.
+
+
+
+
